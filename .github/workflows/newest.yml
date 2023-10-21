@@ -4,6 +4,8 @@ name: Newest
 on:
   #  push:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */1 * * *'
 
 jobs:
   unittest:
@@ -70,4 +72,4 @@ jobs:
           REMOTE_REPOSITORY: ${{ secrets.REMOTE_REPOSITORY }}
         shell: bash
         run: |
-          python -m test.prepare newest -n 200
+          python -m test.prepare newest -n 100

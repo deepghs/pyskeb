@@ -8,10 +8,12 @@ from .base import GenericException
 from .listing import get_urls_from_post, list_newest_posts
 from .process import try_process_url
 
+_wait_time_when_crashed = 60.0 * 6
+
 
 def batch_process_via_iterator(f_iter, timespan: float = 4):
     for username, work_id in f_iter:
-        _last_time = time.time()
+        _iter_last_time = time.time()
         urls = get_urls_from_post(username, work_id)
         logging.info(f'{plural_word(len(urls), "url")} found in @{username}/works/{work_id}')
 
@@ -20,8 +22,9 @@ def batch_process_via_iterator(f_iter, timespan: float = 4):
                 try_process_url(url, prefix=f'{username}_{work_id}_')
             except (GenericException, RuntimeError, requests.exceptions.RequestException, IOError) as err:
                 logging.error(f'Error: {err!r}')
+                time.sleep(_wait_time_when_crashed)
 
-        _duration = _last_time + timespan - time.time()
+        _duration = _iter_last_time + timespan - time.time()
         if _duration > 0.0:
             time.sleep(_duration)
 
