@@ -71,5 +71,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           REMOTE_REPOSITORY: ${{ secrets.REMOTE_REPOSITORY }}
         shell: bash
+        timeout-minutes: 45
+        continue-on-error: true
         run: |
           python -m test.prepare newest -n 100

@@ -2,6 +2,7 @@ import json
 import mimetypes
 import os
 import os.path as osp
+import random
 import re
 import textwrap
 import time
@@ -26,7 +27,12 @@ def is_google_drive(url):
 
 
 _last_time = time.time()
-_wait_time = 5.0
+_wait_time = 30.0
+_ratio = 0.1
+
+
+def _get_wait_time():
+    return (_ratio * 2 * random.random() + (1 - _ratio)) * _wait_time
 
 
 def _wait():
@@ -38,7 +44,6 @@ def _wait():
 
 
 def _get_filename_from_id(resource_id):
-    _wait()
     url = "https://drive.google.com/uc?id={id}".format(id=resource_id)
     url_origin = url
 
@@ -150,7 +155,6 @@ def get_google_resource_id(drive_url):
     if file_id is not None:
         return f'googledrive_{file_id}'
     else:
-        _wait()
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
@@ -162,7 +166,6 @@ def get_google_drive_ids(drive_url):
     if file_id is not None:
         return [(file_id, [_get_filename_from_id(file_id)])]
     else:
-        _wait()
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
 
