@@ -27,7 +27,7 @@ def is_google_drive(url):
 
 
 _last_time = time.time()
-_wait_time = 3.0
+_wait_time = 5.0
 _ratio = 0.1
 
 
