@@ -5,3 +5,4 @@ urlobject
 huggingface_hub
 di-toolkit
 click
+pandas

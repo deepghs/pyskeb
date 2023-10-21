@@ -1,16 +1,19 @@
+import json
 import logging
 import os.path
 import zipfile
 from contextlib import contextmanager
 from datetime import datetime
 
+import pandas as pd
+from hbutils.scale import size_to_bytes_str
 from hbutils.system import TemporaryDirectory
 from huggingface_hub import CommitOperationAdd, CommitOperationCopy, CommitOperationDelete
 from huggingface_hub import hf_hub_url
 from tqdm.auto import tqdm
 
 from pyskeb.utils.download import download_file
-from .base import _REPOSITORY, hf_client
+from .base import _REPOSITORY, hf_client, hf_fs
 
 
 @contextmanager
@@ -20,7 +23,7 @@ def repack_zips():
         os.makedirs(dd_dir, exist_ok=True)
 
         fns = []
-        for file in tqdm(f'datasets/{_REPOSITORY}/unarchived/*.zip'):
+        for file in tqdm(hf_fs.glob(f'datasets/{_REPOSITORY}/unarchived/*.zip')):
             filename = os.path.basename(file)
             fns.append(filename)
 
@@ -49,6 +52,18 @@ def repack_zips():
             yield None, fns
 
 
+def _make_records():
+    if not hf_fs.exists(f'datasets/{_REPOSITORY}/index.json'):
+        retval = []
+        for pack in hf_fs.glob(f'datasets/{_REPOSITORY}/packs/*.zip'):
+            filename = os.path.basename(pack)
+            _info = hf_fs.info(f'datasets/{_REPOSITORY}/packs/{filename}')
+            size = _info['size']
+            retval.append({'filename': filename, 'size': size})
+    else:
+        return json.loads(hf_fs.read_text(f'datasets/{_REPOSITORY}/index.json'))
+
+
 def _timestamp():
     return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
@@ -75,9 +90,49 @@ def repack_all():
                 path_in_repo=f'unarchived/{fn}',
             ))
 
-        hf_client.create_commit(
-            repo_id=_REPOSITORY,
-            repo_type='dataset',
-            operations=operations,
-            commit_message=f'Create new package {package_name!r}.'
-        )
+        all_records = _make_records()
+        all_records.append({'filename': package_name, 'size': os.path.getsize(zip_file)})
+        all_records = sorted(all_records, key=lambda x: x[0], reverse=True)
+
+        df_records = []
+        for item in all_records:
+            url_for_download = hf_hub_url(
+                repo_id=_REPOSITORY, repo_type="dataset",
+                filename=f"packs/{item['filename']}"
+            )
+            df_records.append({
+                'Filename': item['filename'],
+                'Size': size_to_bytes_str(item['size'], precision=3),
+                'Link': f'[Download]({url_for_download})'
+            })
+
+        df = pd.DataFrame(df_records)
+
+        with TemporaryDirectory() as td:
+            md_file = os.path.join(td, 'README.md')
+            with open(md_file, 'w') as f:
+                print('---', file=f)
+                print('license: mit', file=f)
+                print('---', file=f)
+                print('', file=f)
+                print(df.to_markdown(index=False), file=f)
+
+            operations.append(CommitOperationAdd(
+                path_or_fileobj=md_file,
+                path_in_repo='README.md',
+            ))
+
+            index_file = os.path.join(td, 'index.json')
+            with open(index_file, 'w') as f:
+                json.dump(df_records, f, sort_keys=True, ensure_ascii=False, indent=4)
+            operations.append(CommitOperationAdd(
+                path_or_fileobj=index_file,
+                path_in_repo='index.json',
+            ))
+
+            hf_client.create_commit(
+                repo_id=_REPOSITORY,
+                repo_type='dataset',
+                operations=operations,
+                commit_message=f'Create new package {package_name!r}.'
+            )
