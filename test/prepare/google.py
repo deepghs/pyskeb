@@ -27,7 +27,7 @@ def is_google_drive(url):
 
 
 _last_time = time.time()
-_wait_time = 30.0
+_wait_time = 3.0
 _ratio = 0.1
 
 
@@ -43,11 +43,11 @@ def _wait():
     _last_time = time.time()
 
 
-def _get_filename_from_id(resource_id):
+def _get_filename_from_id(resource_id, use_cookies: bool = False):
     url = "https://drive.google.com/uc?id={id}".format(id=resource_id)
     url_origin = url
 
-    sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
+    sess, cookies_file = _get_session(proxy=None, use_cookies=use_cookies, return_cookies_file=True)
     gdrive_file_id, is_gdrive_download_link = parse_url(url, warning=True)
 
     while True:
@@ -103,7 +103,7 @@ def _get_filename_from_id(resource_id):
             )
             continue
 
-        if True:
+        if use_cookies:
             if not osp.exists(osp.dirname(cookies_file)):
                 os.makedirs(osp.dirname(cookies_file))
             # Save cookies
@@ -155,7 +155,7 @@ def get_google_resource_id(drive_url):
     if file_id is not None:
         return f'googledrive_{file_id}'
     else:
-        sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
+        sess = _get_session(proxy=None, use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
         return f'googledrive_{fid}'
@@ -164,9 +164,9 @@ def get_google_resource_id(drive_url):
 def get_google_drive_ids(drive_url):
     file_id, is_downloadable_link = parse_url(drive_url)
     if file_id is not None:
-        return [(file_id, [_get_filename_from_id(file_id)])]
+        return [(file_id, [_get_filename_from_id(file_id, use_cookies=False)])]
     else:
-        sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
+        sess = _get_session(proxy=None, use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
 
         def _recursive(gf, paths):
@@ -190,4 +190,4 @@ def download_google_to_directory(drive_url, output_directory):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
 
         _wait()
-        download(id=id_, output=filename)
+        download(id=id_, output=filename, use_cookies=False)
