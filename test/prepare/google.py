@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 import os.path as osp
 import re
@@ -152,12 +153,10 @@ def get_google_drive_ids(drive_url):
                 for item in gf.children:
                     yield from _recursive(item, [*paths, gf.name])
             else:
-                name = gf.name
-                # if not os.path.splitext(gf.name)[1]:
-                #     name = gf.name + (mimetypes.guess_extension(gf.type) or '')
-                # else:
-                #     name = gf.name
-
+                if not os.path.splitext(gf.name)[1]:
+                    name = gf.name + (mimetypes.guess_extension(gf.type) or '')
+                else:
+                    name = gf.name
                 yield gf.id, [*paths, name]
 
         return list(_recursive(gdrive_file, []))
