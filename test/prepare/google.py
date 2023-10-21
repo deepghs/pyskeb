@@ -37,7 +37,7 @@ def _get_wait_time():
 
 def _wait():
     global _last_time
-    _duration = _last_time + _wait_time - time.time()
+    _duration = _last_time + _get_wait_time() - time.time()
     if _duration > 0:
         time.sleep(_duration)
     _last_time = time.time()
