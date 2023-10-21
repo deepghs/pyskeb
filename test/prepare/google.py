@@ -4,6 +4,7 @@ import os
 import os.path as osp
 import re
 import textwrap
+import time
 
 import six
 from gdown import download
@@ -24,8 +25,21 @@ def is_google_drive(url):
     return urlsplit(url).host == 'drive.google.com'
 
 
-def _get_filename_from_id(id):
-    url = "https://drive.google.com/uc?id={id}".format(id=id)
+_last_time = time.time()
+_wait_time = 5.0
+
+
+def _wait():
+    global _last_time
+    _duration = _last_time + _wait_time - time.time()
+    if _duration > 0:
+        time.sleep(_duration)
+    _last_time = time.time()
+
+
+def _get_filename_from_id(resource_id):
+    _wait()
+    url = "https://drive.google.com/uc?id={id}".format(id=resource_id)
     url_origin = url
 
     sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
@@ -136,6 +150,7 @@ def get_google_resource_id(drive_url):
     if file_id is not None:
         return f'googledrive_{file_id}'
     else:
+        _wait()
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
@@ -147,6 +162,7 @@ def get_google_drive_ids(drive_url):
     if file_id is not None:
         return [(file_id, [_get_filename_from_id(file_id)])]
     else:
+        _wait()
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
 
@@ -170,4 +186,5 @@ def download_google_to_directory(drive_url, output_directory):
         if os.path.dirname(filename):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
 
+        _wait()
         download(id=id_, output=filename)
