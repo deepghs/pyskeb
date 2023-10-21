@@ -17,7 +17,7 @@ def cli():
 @cli.command('newest', context_settings={**GLOBAL_CONTEXT_SETTINGS})
 @click.option('-n', '--number', type=int, default=200)
 def newest(number):
-    logging.try_init_root(logging.INFO)
+    logging.try_init_root(logging.DEBUG)
     batch_process_newest(number)
 
 

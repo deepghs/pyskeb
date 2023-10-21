@@ -60,6 +60,7 @@ def _make_records():
             _info = hf_fs.info(f'datasets/{_REPOSITORY}/packs/{filename}')
             size = _info['size']
             retval.append({'filename': filename, 'size': size})
+        return retval
     else:
         return json.loads(hf_fs.read_text(f'datasets/{_REPOSITORY}/index.json'))
 
@@ -92,7 +93,7 @@ def repack_all():
 
         all_records = _make_records()
         all_records.append({'filename': package_name, 'size': os.path.getsize(zip_file)})
-        all_records = sorted(all_records, key=lambda x: x[0], reverse=True)
+        all_records = sorted(all_records, key=lambda x: x['filename'], reverse=True)
 
         df_records = []
         for item in all_records:
