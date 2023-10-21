@@ -125,7 +125,7 @@ def repack_all():
 
             index_file = os.path.join(td, 'index.json')
             with open(index_file, 'w') as f:
-                json.dump(df_records, f, sort_keys=True, ensure_ascii=False, indent=4)
+                json.dump(all_records, f, sort_keys=True, ensure_ascii=False, indent=4)
             operations.append(CommitOperationAdd(
                 path_or_fileobj=index_file,
                 path_in_repo='index.json',
