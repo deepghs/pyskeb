@@ -134,7 +134,7 @@ def get_google_resource_id(drive_url):
         return f'googledrive_{file_id}'
     else:
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
-        return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, )
+        return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
         return f'googledrive_{fid}'
 
@@ -145,7 +145,7 @@ def get_google_drive_ids(drive_url):
         return [(file_id, [_get_filename_from_id(file_id)])]
     else:
         sess, cookies_file = _get_session(proxy=None, use_cookies=True, return_cookies_file=True)
-        return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, )
+        return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
 
         def _recursive(gf, paths):
             if 'folder' in gf.type:
