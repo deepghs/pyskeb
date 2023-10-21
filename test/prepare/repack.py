@@ -10,7 +10,7 @@ from huggingface_hub import hf_hub_url
 from tqdm.auto import tqdm
 
 from pyskeb.utils.download import download_file
-from .base import hf_fs, _REPOSITORY, hf_client
+from .base import _REPOSITORY, hf_client
 
 
 @contextmanager
@@ -20,7 +20,7 @@ def repack_zips():
         os.makedirs(dd_dir, exist_ok=True)
 
         fns = []
-        for file in tqdm(hf_fs.glob(f'datasets/{_REPOSITORY}/unarchived/*.zip')[:4]):
+        for file in tqdm(f'datasets/{_REPOSITORY}/unarchived/*.zip'):
             filename = os.path.basename(file)
             fns.append(filename)
 

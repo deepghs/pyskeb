@@ -4,6 +4,8 @@ name: Repacker
 on:
   #  push:
   workflow_dispatch:
+  schedule:
+    - cron: '30 12 * * *'
 
 jobs:
   unittest:

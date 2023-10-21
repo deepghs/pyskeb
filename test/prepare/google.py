@@ -13,8 +13,10 @@ from gdown.parse_url import parse_url
 from hbutils.system import urlsplit
 from urlobject import URLObject
 
+from .base import GenericException
 
-class FileURLRetrievalError(Exception):
+
+class FileURLRetrievalError(GenericException):
     pass
 
 
