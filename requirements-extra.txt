@@ -7,3 +7,4 @@ di-toolkit
 click
 pandas
 tabulate
+pyquery

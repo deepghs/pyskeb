@@ -8,9 +8,11 @@ from hbutils.system import TemporaryDirectory
 
 from .base import hf_fs, _REPOSITORY, hf_client
 from .google import is_google_drive, get_google_resource_id, download_google_to_directory
+from .imgur import is_imgur, get_imgur_resource, download_imgur_to_directory
 
 KNOWN_SITES = [
-    (is_google_drive, get_google_resource_id, download_google_to_directory)
+    (is_google_drive, get_google_resource_id, download_google_to_directory),
+    (is_imgur, get_imgur_resource, download_imgur_to_directory),
 ]
 
 
