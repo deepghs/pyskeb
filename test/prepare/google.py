@@ -157,8 +157,11 @@ def get_google_resource_id(drive_url):
     else:
         sess = _get_session(proxy=None, use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
-        fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
-        return f'googledrive_{fid}'
+        if gdrive_file is not None:
+            fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
+            return f'googledrive_{fid}'
+        else:
+            return None
 
 
 def get_google_drive_ids(drive_url):

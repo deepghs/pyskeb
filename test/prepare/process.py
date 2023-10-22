@@ -7,12 +7,14 @@ from contextlib import contextmanager
 from hbutils.system import TemporaryDirectory
 
 from .base import hf_fs, _REPOSITORY, hf_client
+from .dropbox import is_dropbox, get_dropbox_resource, download_dropbox_to_directory
 from .google import is_google_drive, get_google_resource_id, download_google_to_directory
 from .imgur import is_imgur, get_imgur_resource, download_imgur_to_directory
 
 KNOWN_SITES = [
     (is_google_drive, get_google_resource_id, download_google_to_directory),
     (is_imgur, get_imgur_resource, download_imgur_to_directory),
+    (is_dropbox, get_dropbox_resource, download_dropbox_to_directory),
 ]
 
 
@@ -21,6 +23,10 @@ def url_to_zip(url, prefix: str = ''):
     for fn_check, fn_rid, fn_download in KNOWN_SITES:
         if fn_check(url):
             resource_id = fn_rid(url)
+            if resource_id is None:
+                logging.info(f'Unknown resource info for URL {url!r}, skipped!')
+                continue
+
             with TemporaryDirectory() as td, TemporaryDirectory() as ztd:
                 fn_download(url, td)
                 zip_file = os.path.join(ztd, f'{resource_id}.zip')
@@ -48,7 +54,11 @@ def try_process_url(url, prefix: str = ''):
     for fn_check, fn_rid, fn_download in KNOWN_SITES:
         if fn_check(url):
             resource_id = fn_rid(url)
-            logging.info(f'Resource confirmed as {resource_id!r} (URL: {url!r})')
+            if resource_id is None:
+                logging.info(f'Unknown resource info for URL {url!r}, skipped!')
+                continue
+            else:
+                logging.info(f'Resource confirmed as {resource_id!r} (URL: {url!r})')
 
             if hf_fs.glob(f'datasets/{_REPOSITORY}/*/{resource_id}.zip'):
                 logging.info(f'URL {url!r} (resource {resource_id!r}) already crawled, skipped!')

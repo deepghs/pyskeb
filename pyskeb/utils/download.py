@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 
+import pyrfc6266
 import requests
 from tqdm.auto import tqdm
 
@@ -19,10 +20,15 @@ def _with_tqdm(expected_size, desc, silent: bool = False):
         yield _FakeClass()
 
 
-def download_file(url, filename, expected_size: int = None, desc=None, session=None, silent: bool = False, **kwargs):
+def download_file(url, filename=None, output_directory=None,
+                  expected_size: int = None, desc=None, session=None, silent: bool = False,
+                  **kwargs):
     session = session or requests.session()
     response = session.get(url, stream=True, allow_redirects=True, **kwargs)
     expected_size = expected_size or response.headers.get('Content-Length', None)
+    if filename is None:
+        filename = pyrfc6266.parse_filename(response.headers.get('Content-Disposition'))
+    filename = os.path.join(output_directory, filename)
     expected_size = int(expected_size) if expected_size is not None else expected_size
 
     desc = desc or os.path.basename(filename)

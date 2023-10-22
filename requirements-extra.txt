@@ -8,3 +8,4 @@ click
 pandas
 tabulate
 pyquery
+pyrfc6266
