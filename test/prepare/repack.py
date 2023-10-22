@@ -32,6 +32,7 @@ def repack_zips():
                 download_file(
                     hf_hub_url(repo_id=_REPOSITORY, repo_type='dataset', filename=f'unarchived/{filename}'),
                     zip_file,
+                    headers={'Authorization': f'Bearer {os.environ["HF_TOKEN"]}'},
                 )
                 with zipfile.ZipFile(zip_file, 'r') as zf:
                     zf.extractall(dd_dir)
