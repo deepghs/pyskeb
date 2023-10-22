@@ -28,7 +28,8 @@ def download_file(url, filename=None, output_directory=None,
     expected_size = expected_size or response.headers.get('Content-Length', None)
     if filename is None:
         filename = pyrfc6266.parse_filename(response.headers.get('Content-Disposition'))
-    filename = os.path.join(output_directory, filename)
+    if output_directory is not None:
+        filename = os.path.join(output_directory, filename)
     expected_size = int(expected_size) if expected_size is not None else expected_size
 
     desc = desc or os.path.basename(filename)
