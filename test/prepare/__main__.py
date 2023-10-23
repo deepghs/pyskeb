@@ -1,6 +1,7 @@
 import click
 from ditk import logging
 
+from .artists_idx import push_artists_sqlite
 from .lololo import batch_process_newest
 from .repack import repack_all
 
@@ -25,6 +26,12 @@ def newest(number):
 def pack():
     logging.try_init_root(logging.INFO)
     repack_all()
+
+
+@cli.command('artists', context_settings={**GLOBAL_CONTEXT_SETTINGS})
+def artists():
+    logging.try_init_root(logging.INFO)
+    push_artists_sqlite()
 
 
 if __name__ == '__main__':
