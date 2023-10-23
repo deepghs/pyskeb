@@ -30,7 +30,7 @@ def pack():
 
 @cli.command('artists', context_settings={**GLOBAL_CONTEXT_SETTINGS})
 def artists():
-    logging.try_init_root(logging.INFO)
+    logging.try_init_root(logging.DEBUG)
     push_artists_sqlite()
 
 

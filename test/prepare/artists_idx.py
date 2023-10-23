@@ -11,6 +11,7 @@ import pandas as pd
 from hbutils.system import TemporaryDirectory
 from huggingface_hub import hf_hub_download, HfApi
 from orator import DatabaseManager
+from tqdm.auto import tqdm
 from waifuc.utils import get_requests_session
 
 logging.basicConfig(level=logging.DEBUG)
@@ -90,6 +91,9 @@ def _get_all_data(pages: int = None):
     keys = set()
     lock = Lock()
 
+    total_pages = _get_total_pages() if pages is None else pages
+    pg = tqdm(desc='ALL', total=total_pages)
+
     def _append_data(data):
         with lock:
             if data['id'] not in keys:
@@ -112,8 +116,8 @@ def _get_all_data(pages: int = None):
                 # 'updated_at': dateparser.parse(item['updated_at']).timestamp(),
                 'post_count': mapping.get(item['name'], 0)
             })
+        pg.update()
 
-    total_pages = _get_total_pages() if pages is None else pages
     tp = ThreadPoolExecutor(max_workers=max(6, os.cpu_count()))
     for i in range(1, total_pages + 1):
         tp.submit(_fn, i)
