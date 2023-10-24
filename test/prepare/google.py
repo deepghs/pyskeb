@@ -177,7 +177,9 @@ def get_google_drive_ids(drive_url):
                 for item in gf.children:
                     yield from _recursive(item, [*paths, gf.name])
             else:
-                if not os.path.splitext(gf.name)[1]:
+                ga_ext = [item.lower() for item in mimetypes.guess_all_extensions(gf.type)]
+                f_ext = os.path.splitext(gf.name)[1]
+                if not f_ext or (ga_ext and f_ext.lower() not in ga_ext):
                     name = gf.name + (mimetypes.guess_extension(gf.type) or '')
                 else:
                     name = gf.name
