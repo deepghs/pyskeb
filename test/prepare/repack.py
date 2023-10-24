@@ -45,6 +45,7 @@ def repack_zips():
                     filename = os.path.join(dd_dir, root, file)
                     relname = os.path.relpath(filename, dd_dir)
                     zf.write(filename, relname)
+                    os.remove(filename)
                     written = True
 
         if written:
