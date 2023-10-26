@@ -10,6 +10,7 @@ from hbutils.scale import size_to_bytes_str
 from hbutils.system import TemporaryDirectory
 from huggingface_hub import CommitOperationAdd, CommitOperationCopy, CommitOperationDelete
 from huggingface_hub import hf_hub_url
+from huggingface_hub.utils import HfHubHTTPError
 from tqdm.auto import tqdm
 
 from pyskeb.utils.download import download_file
@@ -133,9 +134,16 @@ def repack_all():
                 path_in_repo='index.json',
             ))
 
-            hf_client.create_commit(
-                repo_id=_REPOSITORY,
-                repo_type='dataset',
-                operations=operations,
-                commit_message=f'Create new package {package_name!r}.'
-            )
+            while True:
+                try:
+                    hf_client.create_commit(
+                        repo_id=_REPOSITORY,
+                        repo_type='dataset',
+                        operations=operations,
+                        commit_message=f'Create new package {package_name!r}.'
+                    )
+                except HfHubHTTPError as err:
+                    logging.exception(err)
+                    logging.warning('Retry to commit ...')
+                else:
+                    break
