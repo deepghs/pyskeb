@@ -73,6 +73,13 @@ def _timestamp():
 
 
 def repack_all():
+    if not hf_fs.exists(f'datasets/{_REPOSITORY}/.gitattributes'):
+        hf_client.create_repo(
+            repo_id=_REPOSITORY,
+            repo_type='dataset',
+            exist_ok=True
+        )
+
     with repack_zips() as (zip_file, fns):
         if zip_file is None:
             logging.info('No files to repack, skipped.')
@@ -134,16 +141,17 @@ def repack_all():
                 path_in_repo='index.json',
             ))
 
-            while True:
-                try:
-                    hf_client.create_commit(
-                        repo_id=_REPOSITORY,
-                        repo_type='dataset',
-                        operations=operations,
-                        commit_message=f'Create new package {package_name!r}.'
-                    )
-                except HfHubHTTPError as err:
-                    logging.exception(err)
-                    logging.warning('Retry to commit ...')
-                else:
-                    break
+            if operations:
+                while True:
+                    try:
+                        hf_client.create_commit(
+                            repo_id=_REPOSITORY,
+                            repo_type='dataset',
+                            operations=operations,
+                            commit_message=f'Create new package {package_name!r}.'
+                        )
+                    except HfHubHTTPError as err:
+                        logging.exception(err)
+                        logging.warning('Retry to commit ...')
+                    else:
+                        break

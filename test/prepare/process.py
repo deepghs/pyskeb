@@ -51,6 +51,13 @@ def url_to_zip(url, prefix: str = ''):
 
 
 def try_process_url(url, prefix: str = ''):
+    if not hf_fs.exists(f'datasets/{_REPOSITORY}/.gitattributes'):
+        hf_client.create_repo(
+            repo_id=_REPOSITORY,
+            repo_type='dataset',
+            exist_ok=True
+        )
+
     for fn_check, fn_rid, fn_download in KNOWN_SITES:
         if fn_check(url):
             resource_id = fn_rid(url)
