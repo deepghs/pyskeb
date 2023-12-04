@@ -55,7 +55,8 @@ def try_process_url(url, prefix: str = ''):
         hf_client.create_repo(
             repo_id=_REPOSITORY,
             repo_type='dataset',
-            exist_ok=True
+            exist_ok=True,
+            private=True,
         )
 
     for fn_check, fn_rid, fn_download in KNOWN_SITES:

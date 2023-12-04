@@ -77,7 +77,8 @@ def repack_all():
         hf_client.create_repo(
             repo_id=_REPOSITORY,
             repo_type='dataset',
-            exist_ok=True
+            exist_ok=True,
+            private=True,
         )
 
     with repack_zips() as (zip_file, fns):
