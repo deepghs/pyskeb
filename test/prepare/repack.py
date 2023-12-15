@@ -36,7 +36,10 @@ def repack_zips():
                     headers={'Authorization': f'Bearer {os.environ["HF_TOKEN"]}'},
                 )
                 with zipfile.ZipFile(zip_file, 'r') as zf:
-                    zf.extractall(dd_dir)
+                    try:
+                        zf.extractall(dd_dir)
+                    except OSError as err:
+                        logging.warning(repr(err))
 
         zip_file = os.path.join(td, 'package.zip')
         written = False
