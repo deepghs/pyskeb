@@ -5,9 +5,9 @@ name: Docs Deploy
 
 on:
   push:
-  #    branches: [ main, 'doc/*', 'dev/*' ]
-  release:
-    types: [ published ]
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * 6'
 
 jobs:
   doc:
@@ -42,23 +42,15 @@ jobs:
           python -m pip install -r requirements-doc.txt
           python -m pip install -r requirements-test.txt
       - name: Generate
-        env:
-          ENV_PROD: 'true'
-          PLANTUML_HOST: http://localhost:18080
         run: |
-          git fetch --all --tags
-          git branch -av
-          git remote -v
-          git tag
-          plantumlcli -c
-          make pdocs
-          mv ./docs/build/html ./public
+          mkdir -p public
+          date > public/README.md
       - name: Deploy to Github Page
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_CONFIG_NAME: narugo1992
           GIT_CONFIG_EMAIL: narugo992@gmail.com
-          BRANCH: gh-pages # The branch the action should deploy to.
+          BRANCH: date-keep # The branch the action should deploy to.
           FOLDER: public # The folder the action should deploy.
           CLEAN: true # Automatically remove deleted files from the deploy branch
