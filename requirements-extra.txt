@@ -12,3 +12,4 @@ pyrfc6266
 git+https://github.com/deepghs/waifuc.git@main#egg=waifuc
 orator
 dateparser
+lxml<5
