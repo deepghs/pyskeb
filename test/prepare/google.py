@@ -6,6 +6,7 @@ import random
 import re
 import textwrap
 import time
+import warnings
 
 import six
 from gdown import download
@@ -195,4 +196,7 @@ def download_google_to_directory(drive_url, output_directory):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
 
         _wait()
-        download(id=id_, output=filename, use_cookies=False)
+        try:
+            download(id=id_, output=filename, use_cookies=False)
+        except Exception as err:
+            warnings.warn(f'Error occurred, skipped: {err!r}')
