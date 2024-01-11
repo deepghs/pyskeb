@@ -196,7 +196,7 @@ def download_google_to_directory(drive_url, output_directory):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
 
         _wait()
-        try:
-            download(id=id_, output=filename, use_cookies=False)
-        except Exception as err:
-            warnings.warn(f'Error occurred, skipped: {err!r}')
+        if not download(id=id_, output=filename, use_cookies=False):
+            warnings.warn(f'Error occurred, skip this directory: {drive_url!r}!')
+            break
+
