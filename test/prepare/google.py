@@ -172,6 +172,8 @@ def get_google_drive_ids(drive_url):
     else:
         sess = _get_session(use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
+        if not gdrive_file:
+            return []
 
         def _recursive(gf, paths):
             if 'folder' in gf.type:
