@@ -48,7 +48,7 @@ def _get_filename_from_id(resource_id, use_cookies: bool = False):
     url = "https://drive.google.com/uc?id={id}".format(id=resource_id)
     url_origin = url
 
-    sess, cookies_file = _get_session(proxy=None, use_cookies=use_cookies, return_cookies_file=True)
+    sess, cookies_file = _get_session(use_cookies=use_cookies, return_cookies_file=True)
     gdrive_file_id, is_gdrive_download_link = parse_url(url, warning=True)
 
     while True:
@@ -156,7 +156,7 @@ def get_google_resource_id(drive_url):
     if file_id is not None:
         return f'googledrive_{file_id}'
     else:
-        sess = _get_session(proxy=None, use_cookies=False)
+        sess = _get_session(use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         if gdrive_file is not None:
             fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
@@ -170,7 +170,7 @@ def get_google_drive_ids(drive_url):
     if file_id is not None:
         return [(file_id, [_get_filename_from_id(file_id, use_cookies=False)])]
     else:
-        sess = _get_session(proxy=None, use_cookies=False)
+        sess = _get_session(use_cookies=False)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
 
         def _recursive(gf, paths):
