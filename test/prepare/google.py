@@ -192,13 +192,15 @@ def get_google_drive_ids(drive_url):
 
 
 def download_google_to_directory(drive_url, output_directory):
-    for id_, segments in get_google_drive_ids(drive_url):
-        filename = os.path.join(output_directory, *segments)
-        if os.path.dirname(filename):
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
+    try:
+        for id_, segments in get_google_drive_ids(drive_url):
+            filename = os.path.join(output_directory, *segments)
+            if os.path.dirname(filename):
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        _wait()
-        if not download(id=id_, output=filename, use_cookies=False):
-            warnings.warn(f'Error occurred, skip this directory: {drive_url!r}!')
-            break
-
+            _wait()
+            if not download(id=id_, output=filename, use_cookies=False):
+                warnings.warn(f'Error occurred, skip this directory: {drive_url!r}!')
+                break
+    except Exception as err:
+        warnings.warn(f'Skipped for {drive_url!r}, err: {err!r}')

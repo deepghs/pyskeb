@@ -37,11 +37,8 @@ def _get_danbooru_db() -> DatabaseManager:
     ))
 
 
-_danbooru_db = _get_danbooru_db()
-
-
 def _tag_post_cnt(tag) -> int:
-    lst = list(_danbooru_db.table('tags').select('*').where('name', tag).get())
+    lst = list(_get_danbooru_db().table('tags').select('*').where('name', tag).get())
     print(lst)
     if lst:
         return lst[0]['post_count']
@@ -105,7 +102,7 @@ def _get_all_data(pages: int = None):
         tags = [item['name'] for item in items]
         mapping = {
             item['name']: item['post_count'] for item in
-            _danbooru_db.table('tags').select('*').where_in('name', tags).get()
+            _get_danbooru_db().table('tags').select('*').where_in('name', tags).get()
         }
         for item in items:
             _append_data({

@@ -8,7 +8,7 @@ from .base import GenericException
 from .listing import get_urls_from_post, list_newest_posts
 from .process import try_process_url
 
-_wait_time_when_crashed = 60.0 * 6
+_wait_time_when_crashed = 10.0
 
 
 def batch_process_via_iterator(f_iter, timespan: float = 4):
