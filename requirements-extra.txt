@@ -1,6 +1,6 @@
 google-re2
 pyxurls
-gdown
+gdown==v4.6.3
 urlobject
 huggingface_hub
 di-toolkit
@@ -13,4 +13,3 @@ git+https://github.com/deepghs/waifuc.git@main#egg=waifuc
 orator
 dateparser
 lxml<5
-pyquery
