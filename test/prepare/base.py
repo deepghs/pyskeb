@@ -13,8 +13,7 @@ class GenericException(Exception):
 
 
 def _ensure_repository():
-    # if not hf_client.repo_exists(repo_id=_REPOSITORY, repo_type='dataset'):
-    if True:
+    if not hf_client.repo_exists(repo_id=_REPOSITORY, repo_type='dataset'):
         hf_client.create_repo(
             repo_id=_REPOSITORY,
             repo_type='dataset',
