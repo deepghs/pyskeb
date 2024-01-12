@@ -1,12 +1,15 @@
+import json
 import logging
 import os
 import re
 import zipfile
 from contextlib import contextmanager
+from functools import lru_cache
+from typing import List, Set
 
 from hbutils.system import TemporaryDirectory
 
-from .base import hf_fs, _REPOSITORY, hf_client
+from .base import hf_fs, _REPOSITORY, hf_client, _ensure_repository
 from .dropbox import is_dropbox, get_dropbox_resource, download_dropbox_to_directory
 from .google import is_google_drive, get_google_resource_id, download_google_to_directory
 from .imgur import is_imgur, get_imgur_resource, download_imgur_to_directory
@@ -50,15 +53,26 @@ def url_to_zip(url, prefix: str = ''):
         yield None
 
 
-def try_process_url(url, prefix: str = ''):
-    if not hf_fs.exists(f'datasets/{_REPOSITORY}/.gitattributes'):
-        hf_client.create_repo(
-            repo_id=_REPOSITORY,
-            repo_type='dataset',
-            exist_ok=True,
-            private=True,
-        )
+@lru_cache()
+def _get_archived_resource_ids() -> List[str]:
+    if hf_fs.exists(f'datasets/{_REPOSITORY}/archived.json'):
+        return json.loads(hf_fs.read_text(f'datasets/{_REPOSITORY}/archived.json'))
+    else:
+        return []
 
+
+@lru_cache()
+def _get_archived_resource_ids_set() -> Set[str]:
+    return set(_get_archived_resource_ids())
+
+
+def _is_resource_exist(resource_id: str) -> bool:
+    return (resource_id in _get_archived_resource_ids_set()) or \
+        hf_fs.exists(f'datasets/{_REPOSITORY}/unarchived/{resource_id}.zip')
+
+
+def try_process_url(url, prefix: str = ''):
+    _ensure_repository()
     for fn_check, fn_rid, fn_download in KNOWN_SITES:
         if fn_check(url):
             resource_id = fn_rid(url)
@@ -68,7 +82,7 @@ def try_process_url(url, prefix: str = ''):
             else:
                 logging.info(f'Resource confirmed as {resource_id!r} (URL: {url!r})')
 
-            if hf_fs.glob(f'datasets/{_REPOSITORY}/*/{resource_id}.zip'):
+            if _is_resource_exist(resource_id):
                 logging.info(f'URL {url!r} (resource {resource_id!r}) already crawled, skipped!')
                 return
 

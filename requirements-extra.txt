@@ -2,7 +2,7 @@ google-re2
 pyxurls
 gdown==v4.6.3
 urlobject
-huggingface_hub
+huggingface_hub>=0.17
 di-toolkit
 click
 pandas

@@ -8,13 +8,13 @@ from datetime import datetime
 import pandas as pd
 from hbutils.scale import size_to_bytes_str
 from hbutils.system import TemporaryDirectory
-from huggingface_hub import CommitOperationAdd, CommitOperationCopy, CommitOperationDelete
+from huggingface_hub import CommitOperationAdd, CommitOperationDelete
 from huggingface_hub import hf_hub_url
 from huggingface_hub.utils import HfHubHTTPError
 from tqdm.auto import tqdm
 
 from pyskeb.utils.download import download_file
-from .base import _REPOSITORY, hf_client, hf_fs
+from .base import _REPOSITORY, hf_client, hf_fs, _ensure_repository
 
 
 @contextmanager
@@ -76,13 +76,11 @@ def _timestamp():
 
 
 def repack_all():
-    if not hf_fs.exists(f'datasets/{_REPOSITORY}/.gitattributes'):
-        hf_client.create_repo(
-            repo_id=_REPOSITORY,
-            repo_type='dataset',
-            exist_ok=True,
-            private=True,
-        )
+    _ensure_repository()
+    if hf_fs.exists(f'datasets/{_REPOSITORY}/archived.json'):
+        archived_resource_ids = json.loads(hf_fs.read_text(f'datasets/{_REPOSITORY}/archived.json'))
+    else:
+        archived_resource_ids = []
 
     with repack_zips() as (zip_file, fns):
         if zip_file is None:
@@ -97,13 +95,10 @@ def repack_all():
             path_in_repo=f'packs/{package_name}'
         ))
         for fn in fns:
-            operations.append(CommitOperationCopy(
-                src_path_in_repo=f'unarchived/{fn}',
-                path_in_repo=f'archived/{fn}',
-            ))
             operations.append(CommitOperationDelete(
                 path_in_repo=f'unarchived/{fn}',
             ))
+            archived_resource_ids.append(os.path.splitext(fn)[0])
 
         all_records = _make_records()
         all_records.append({'filename': package_name, 'size': os.path.getsize(zip_file)})
@@ -143,6 +138,14 @@ def repack_all():
             operations.append(CommitOperationAdd(
                 path_or_fileobj=index_file,
                 path_in_repo='index.json',
+            ))
+
+            archived_json_file = os.path.join(td, 'archived.json')
+            with open(archived_json_file, 'w') as f:
+                json.dump(archived_resource_ids, f, indent=4, ensure_ascii=False)
+            operations.append(CommitOperationAdd(
+                path_or_fileobj=archived_json_file,
+                path_in_repo='archived.json',
             ))
 
             if operations:
