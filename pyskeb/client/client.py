@@ -2,6 +2,8 @@ from urllib.parse import urljoin
 
 import requests
 
+from ..utils import get_random_ua
+
 SKEB_WEBISTE = 'https://skeb.jp'
 
 
@@ -11,15 +13,19 @@ class SkebClient:
         self._session = requests.session()
         self._session.headers.update({
             'Referer': 'https://skeb.jp',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-                          '(KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+            'User-Agent': get_random_ua(),
             "Authorization": "Bearer null",
+            "Accept": "application/json, text/plain, */*",
         })
 
     def _get(self, url, params=None):
-        resp = self._session.get(urljoin(SKEB_WEBISTE, url), params=params or {})
-        resp.raise_for_status()
-        return resp.json()
+        while True:
+            resp = self._session.get(urljoin(SKEB_WEBISTE, url), params=params or {})
+            if not resp.ok and resp.status_code == 429 and 'request_key' in resp.cookies:
+                continue
+
+            resp.raise_for_status()
+            return resp.json()
 
     def get_page(self, offset: int = 0, limit: int = 90):
         return self._get(
