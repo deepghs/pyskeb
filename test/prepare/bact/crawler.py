@@ -113,7 +113,7 @@ def bact_crawl(repository: str, maxcnt: int = 100):
             if current_count >= maxcnt:
                 break
 
-        if not os.listdir(img_dir):
+        if not os.listdir(img_dir): 
             logging.warning('No images found, quit.')
             return
 
