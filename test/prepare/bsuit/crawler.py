@@ -140,6 +140,10 @@ def bsuit_crawl(repository: str, maxcnt: int = 100):
 
             page += 1
 
+        if not os.listdir(img_dir):
+            logging.warning('No images found, quit.')
+            return
+
         from ..repack import _timestamp
         img_pack_file = os.path.join(td, f'suit_pack_{_timestamp()}.zip')
         with zipfile.ZipFile(img_pack_file, 'w') as zf:
