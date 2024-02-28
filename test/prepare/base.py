@@ -2,8 +2,9 @@ import os
 
 from huggingface_hub import HfApi, HfFileSystem
 
-hf_client = HfApi(token=os.environ.get('HF_TOKEN'))
-hf_fs = HfFileSystem(token=os.environ.get('HF_TOKEN'))
+hf_token = os.environ.get('HF_TOKEN')
+hf_client = HfApi(token=hf_token)
+hf_fs = HfFileSystem(token=hf_token)
 
 _REPOSITORY = os.environ['REMOTE_REPOSITORY']
 
