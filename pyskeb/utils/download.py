@@ -18,7 +18,7 @@ def _with_tqdm(expected_size, desc, silent: bool = False):
     if not silent:
         with tqdm(total=expected_size, unit='B', unit_scale=True, unit_divisor=1024, desc=desc) as pbar:
             yield pbar
-    else: 
+    else:
         yield _FakeClass()
 
 
