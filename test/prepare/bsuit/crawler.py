@@ -85,6 +85,9 @@ def bsuit_crawl(repository: str, maxcnt: int = 100):
             resp.raise_for_status()
             lst = resp.json()['data']['list']
 
+            if not lst:
+                break
+
             for item in lst:
                 item_id = item['item_id']
                 suit_id = f'suit_{item_id}'
