@@ -61,7 +61,7 @@ def bact_crawl(repository: str, maxcnt: int = 100):
         else:
             records = []
 
-        img_dir = os.path.join(td, 'images')
+        img_dir = os.path.join(td, 'videos')
         os.makedirs(img_dir, exist_ok=True)
 
         resp = session.get(
@@ -99,12 +99,16 @@ def bact_crawl(repository: str, maxcnt: int = 100):
             lottery_name = resp.json()['data']['name']
 
             for li_id, li_item in enumerate(resp.json()['data']['item_list']):
-                card_img_url = li_item['card_info']['card_img']
-                card_img_name = f'act_{act_id}__{_name_safe(act_name)}__lottery_{lottery_id}__{_name_safe(lottery_name)}__{li_id}'
-                _, ext = os.path.splitext(urlsplit(card_img_url).filename)
-                dst_file = os.path.join(img_dir, f'{card_img_name}{ext}')
-                logging.info(f'Downloading {card_img_url!r} to {dst_file!r} ...')
-                download_file(card_img_url, filename=dst_file, session=session)
+                vlist = li_item['card_info']['video_list'] or []
+                vname = f'act_{act_id}__{_name_safe(act_name)}__lottery_{lottery_id}__{_name_safe(lottery_name)}__{li_id}'
+                if vlist:
+                    vurl = vlist[0]
+                    logging.info(f'Video URL: {vurl!r}')
+
+                    _, ext = os.path.splitext(urlsplit(vurl).filename)
+                    dst_file = os.path.join(img_dir, f'{vname}{ext}')
+                    logging.info(f'Downloading {vurl!r} to {dst_file!r} ...')
+                    download_file(vurl, filename=dst_file, session=session)
 
             exist_sids.add(suit_id)
             pg.update()
@@ -113,7 +117,7 @@ def bact_crawl(repository: str, maxcnt: int = 100):
                 break
 
         if not os.listdir(img_dir):
-            logging.warning('No images found, quit.')
+            logging.warning('No videos found, quit.')
             return
 
         item_cnt = len(os.listdir(img_dir))
@@ -127,7 +131,7 @@ def bact_crawl(repository: str, maxcnt: int = 100):
         filename = os.path.basename(img_pack_file)
         records.append({
             'Filename': filename,
-            'Images': item_cnt,
+            'Videos': item_cnt,
             'Size': size_to_bytes_str(os.path.getsize(img_pack_file), precision=3),
             'Download': f'[Download]'
                         f'({hf_hub_url(repo_id=repository, repo_type="dataset", filename=f"packs/{filename}")})',
@@ -166,6 +170,6 @@ def bact_crawl(repository: str, maxcnt: int = 100):
 if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     bact_crawl(
-        repository=os.environ['REMOTE_REPOSITORY_BACT'],
+        repository=os.environ['REMOTE_REPOSITORY_BACT_V'],
         maxcnt=100,
     )
