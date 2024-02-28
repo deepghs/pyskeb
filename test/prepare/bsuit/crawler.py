@@ -5,7 +5,6 @@ import shutil
 import zipfile
 
 import pandas as pd
-import requests
 from ditk import logging
 from hbutils.scale import size_to_bytes_str
 from hbutils.string import plural_word
@@ -14,12 +13,12 @@ from hfutils.operate import download_file_to_file, upload_directory_as_directory
 from huggingface_hub import hf_hub_url
 from tqdm import tqdm
 
-from pyskeb.utils import get_random_mobile_ua, download_file
+from pyskeb.utils import get_random_mobile_ua, download_file, get_requests_session
 from ..base import hf_fs, hf_client, hf_token
 
 
 def bsuit_crawl(repository: str, maxcnt: int = 100):
-    session = requests.session()
+    session = get_requests_session()
     session.headers.update({
         'User-Agent': get_random_mobile_ua(),
         'Referer': 'https://www.bilibili.com/',

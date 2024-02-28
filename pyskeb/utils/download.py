@@ -5,6 +5,8 @@ import pyrfc6266
 import requests
 from tqdm.auto import tqdm
 
+from .session import srequest, get_requests_session
+
 
 class _FakeClass:
     def update(self, *args, **kwargs):
@@ -23,8 +25,8 @@ def _with_tqdm(expected_size, desc, silent: bool = False):
 def download_file(url, filename=None, output_directory=None,
                   expected_size: int = None, desc=None, session=None, silent: bool = False,
                   **kwargs):
-    session = session or requests.session()
-    response = session.get(url, stream=True, allow_redirects=True, **kwargs)
+    session = session or get_requests_session()
+    response = srequest(session, 'GET', url, stream=True, allow_redirects=True, **kwargs)
     expected_size = expected_size or response.headers.get('Content-Length', None)
     if filename is None:
         filename = pyrfc6266.parse_filename(response.headers.get('Content-Disposition'))
