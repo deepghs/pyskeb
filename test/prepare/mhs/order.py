@@ -54,6 +54,23 @@ def _url_fix(url):
     return url
 
 
+def _check_non_anime(img_file, title) -> bool:
+    try:
+        real_type, _ = anime_real(img_file)
+    except UnidentifiedImageError:
+        warnings.warn(f'Resource {title!r} unidentified as image, skipped.')
+        return False
+    except (IOError, DecompressionBombError) as err:
+        warnings.warn(f'Skipped due to IO error: {err!r}')
+        return False
+    else:
+        if real_type != 'anime':
+            logging.warning(f'Resource {title!r} not an anime image, skipped.')
+            return False
+
+    return True
+
+
 def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
     session = get_requests_session()
     session.headers.update({
@@ -86,7 +103,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
     logging.info(f'{plural_word(len(exist_sids), "exist sid")} detected.')
 
     pg = tqdm(desc='Max Count', total=maxcnt)
-
+    pg_imgs = tqdm(desc='Images Count')
     with TemporaryDirectory() as td:
         if hf_fs.exists(f'datasets/{repository}/records.csv'):
             records_csv = os.path.join(td, 'records.csv')
@@ -134,19 +151,10 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     dst_file = os.path.join(img_dir, f'{e_name}{ext}')
                     logging.info(f'Downloading {e_url!r} to {dst_file!r} ...')
                     download_file(e_url, filename=dst_file, session=session)
-
-                    try:
-                        real_type, _ = anime_real(dst_file)
-                    except UnidentifiedImageError:
-                        warnings.warn(f'Resource {e_name!r} unidentified as image, skipped.')
-                        os.remove(dst_file)
-                    except (IOError, DecompressionBombError) as err:
-                        warnings.warn(f'Skipped due to IO error: {err!r}')
-                        os.remove(dst_file)
+                    if _check_non_anime(dst_file, e_name):
+                        pg_imgs.update()
                     else:
-                        if real_type != 'anime':
-                            logging.warning(f'Resource {e_name!r} not an anime image, skipped.')
-                            os.remove(dst_file)
+                        os.remove(dst_file)
 
                 card_items = project_info['character_cards']
                 for ci, citem in enumerate(card_items):
@@ -165,19 +173,10 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     dst_file = os.path.join(img_dir, f'{c_name}{ext}')
                     logging.info(f'Downloading {c_image_url!r} to {dst_file!r} ...')
                     download_file(c_image_url, filename=dst_file, session=session)
-
-                    try:
-                        real_type, _ = anime_real(dst_file)
-                    except UnidentifiedImageError:
-                        warnings.warn(f'Resource {c_name!r} unidentified as image, skipped.')
-                        os.remove(dst_file)
-                    except (IOError, DecompressionBombError) as err:
-                        warnings.warn(f'Skipped due to IO error: {err!r}')
-                        os.remove(dst_file)
+                    if _check_non_anime(dst_file, c_name):
+                        pg_imgs.update()
                     else:
-                        if real_type != 'anime':
-                            logging.warning(f'Resource {c_name!r} not an anime image, skipped.')
-                            os.remove(dst_file)
+                        os.remove(dst_file)
 
             except requests.exceptions.HTTPError as err:
                 status_code = err.response.status_code
