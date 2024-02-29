@@ -159,6 +159,8 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 break
 
             page += 1
+            if page > 1000:
+                break
 
         if not os.listdir(img_dir):
             logging.warning('No images found, quit.')
