@@ -54,6 +54,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
     logging.info(f'{plural_word(len(exist_sids), "exist sid")} detected.')
 
     pg = tqdm(desc='Max Count', total=maxcnt)
+
     with TemporaryDirectory() as td:
         if hf_fs.exists(f'datasets/{repository}/records.csv'):
             records_csv = os.path.join(td, 'records.csv')
@@ -72,6 +73,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
         os.makedirs(img_dir, exist_ok=True)
 
         current_count = 0
+        has_new = False
         for project_id in range(100, 2000000):
             suit_id = f'project_{project_id}'
             logging.info(f'Resource {suit_id!r} confirmed.')
@@ -172,19 +174,20 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     continue
 
             exist_sids.add(suit_id)
+            has_new = True
             pg.update()
             current_count += 1
             if current_count >= maxcnt:
                 break
 
-        if not os.listdir(img_dir):
-            logging.warning('No images found, quit.')
-            return
+        if not has_new:
+            logging.info('No update, quit.')
 
         export_dir = os.path.join(td, 'export')
         os.makedirs(export_dir, exist_ok=True)
 
         item_cnt = len(os.listdir(img_dir))
+        logging.info(f'{plural_word(item_cnt, "image")} in total.')
         if item_cnt:
             from ..repack import _timestamp
             img_pack_file = os.path.join(td, f'mhs_project_pack_{_timestamp()}.zip')
