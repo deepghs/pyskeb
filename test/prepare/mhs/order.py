@@ -22,6 +22,38 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
+def _url_fix(url):
+    _, ext = os.path.splitext(urlsplit(url).filename)
+    if ext == '.j':
+        return url + 'pg'
+    if ext == '.jp':
+        return url + 'g'
+    if ext == '.J':
+        return url + 'PG'
+    if ext == '.JP':
+        return url + 'G'
+
+    if ext == '.p':
+        return url + 'ng'
+    if ext == '.pn':
+        return url + 'g'
+    if ext == '.P':
+        return url + 'NG'
+    if ext == '.PN':
+        return url + 'G'
+
+    if ext == '.g':
+        return url + 'if'
+    if ext == '.gi':
+        return url + 'f'
+    if ext == '.G':
+        return url + 'IF'
+    if ext == '.GI':
+        return url + 'F'
+
+    return url
+
+
 def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
     session = get_requests_session()
     session.headers.update({
@@ -94,13 +126,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
 
                 example_image_items = project_info['example_images']
                 for ei, eitem in enumerate(example_image_items):
-                    e_url = eitem['url']
-                    _, ext = os.path.splitext(urlsplit(e_url).filename)
-                    if ext == '.j':
-                        e_url = e_url + 'pg'
-                    elif ext == '.p':
-                        e_url = e_url + 'ng'
-
+                    e_url = _url_fix(eitem['url'])
                     e_name = (f'{owner_id}__{_name_safe(owner_name)}__'
                               f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
                               f'e_{ei}')
@@ -130,13 +156,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     resp = session.get(f'https://www.mihuashi.com/api/v1/character_cards/{c_token}')
                     resp.raise_for_status()
 
-                    c_image_url = resp.json()['character_card']['image_url']
-                    _, ext = os.path.splitext(urlsplit(c_image_url).filename)
-                    if ext == '.j':
-                        c_image_url = c_image_url + 'pg'
-                    elif ext == '.p':
-                        c_image_url = c_image_url + 'ng'
-
+                    c_image_url = _url_fix(resp.json()['character_card']['image_url'])
                     c_image_title = resp.json()['character_card']['name']
                     c_name = (f'{owner_id}__{_name_safe(owner_name)}__'
                               f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
