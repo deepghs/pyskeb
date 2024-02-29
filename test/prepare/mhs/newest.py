@@ -70,6 +70,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 hf_token=hf_token,
             )
             records = pd.read_csv(records_csv).to_dict('records')
+            os.remove(records_csv)
         else:
             records = []
 
@@ -84,6 +85,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             )
             all_tags = pd.read_csv(tags_csv).to_dict('records')
             all_tag_ids = set(pd.read_csv(tags_csv)['id'])
+            os.remove(tags_csv)
         else:
             all_tags = []
             all_tag_ids = set()
