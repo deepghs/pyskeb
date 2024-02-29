@@ -74,7 +74,7 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
 
         current_count = 0
         has_new = False
-        for project_id in range(100, 2000000):
+        for project_id in range(100, 2556530):
             suit_id = f'project_{project_id}'
             logging.info(f'Resource {suit_id!r} confirmed.')
             if suit_id in exist_sids:
@@ -236,5 +236,5 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_project_order_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
-        maxcnt=5000,
+        maxcnt=10000,
     )
