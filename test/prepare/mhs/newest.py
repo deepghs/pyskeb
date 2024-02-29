@@ -62,6 +62,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
         page = 1
         current_count = 0
         while True:
+            logging.info(f'Requesting for page {page!r}.')
             resp = session.get(
                 'https://www.mihuashi.com/api/v1/artworks/search',
                 params={
@@ -75,6 +76,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
                 item_id = item['id']
                 item_type = item['artwork_type']
                 suit_id = f'artwork_{item_id}'
+                logging.info(f'Resource {suit_id!r} confirmed.')
+                if suit_id in exist_sids:
+                    logging.info(f'Resource {suit_id!r} already crawled, skipped.')
+                    continue
+
                 resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
                 resp.raise_for_status()
 
@@ -85,6 +91,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
                 item_url = artwork_info['url']
 
                 item_name = f'author_{author_id}__{_name_safe(author_name)}__artwork_{item_id}_{item_type}'
+
                 _, ext = os.path.splitext(urlsplit(item_url).filename)
                 dst_file = os.path.join(img_dir, f'{item_name}{ext}')
                 logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
