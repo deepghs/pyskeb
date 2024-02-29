@@ -14,3 +14,4 @@ orator
 dateparser
 lxml<5
 hfutils>=0.0.6
+dghs-imgutils>=0.3.5
