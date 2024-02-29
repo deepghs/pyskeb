@@ -33,6 +33,13 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
 
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
         hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
+        attr_lines = hf_fs.read_text(f'datasets/{repository}/.gitattributes').splitlines(keepends=False)
+        attr_lines.append('*.json filter=lfs diff=lfs merge=lfs -text')
+        attr_lines.append('*.csv filter=lfs diff=lfs merge=lfs -text')
+        hf_fs.write_text(
+            f'datasets/{repository}/.gitattributes',
+            os.linesep.join(attr_lines),
+        )
 
     if hf_fs.exists(f'datasets/{repository}/exist_sids.json'):
         exist_sids = json.loads(hf_fs.read_text(f'datasets/{repository}/exist_sids.json'))
@@ -40,6 +47,14 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
         exist_sids = []
     exist_sids = set(exist_sids)
     logging.info(f'{plural_word(len(exist_sids), "exist sid")} detected.')
+
+    if hf_fs.exists(f'datasets/{repository}/artworks.json'):
+        all_artworks = json.loads(hf_fs.read_text(f'datasets/{repository}/artworks.json'))
+    else:
+        all_artworks = []
+
+    from ..repack import _timestamp
+    pack_name = f'mhs_newest_pack_{_timestamp()}.zip'
 
     pg = tqdm(desc='Max Count', total=maxcnt)
     with TemporaryDirectory() as td:
@@ -55,6 +70,21 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
             records = pd.read_csv(records_csv).to_dict('records')
         else:
             records = []
+
+        if hf_fs.exists(f'datasets/{repository}/tags.csv'):
+            tags_csv = os.path.join(td, 'tags.csv')
+            download_file_to_file(
+                local_file=tags_csv,
+                repo_id=repository,
+                repo_type='dataset',
+                file_in_repo='tags.csv',
+                hf_token=hf_token,
+            )
+            all_tags = pd.read_csv(tags_csv).to_dict('records')
+            all_tag_ids = set(pd.read_csv(tags_csv)['id'])
+        else:
+            all_tags = []
+            all_tag_ids = set()
 
         img_dir = os.path.join(td, 'images')
         os.makedirs(img_dir, exist_ok=True)
@@ -90,14 +120,30 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
                 artwork_info = resp.json()['artwork']
                 item_url = artwork_info['url']
 
-                item_name = f'author_{author_id}__{_name_safe(author_name)}__artwork_{item_id}_{item_type}'
+                item_name = f'{author_id}__{_name_safe(author_name)}__{item_id}'
 
                 _, ext = os.path.splitext(urlsplit(item_url).filename)
                 dst_file = os.path.join(img_dir, f'{item_name}{ext}')
                 logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
                 download_file(item_url, filename=dst_file, session=session)
 
+                artwork_tags = artwork_info['tags']
+                for tag_item in artwork_tags:
+                    if tag_item['id'] not in all_tag_ids:
+                        all_tags.append(tag_item)
+                        all_tag_ids.add(tag_item['id'])
+
                 exist_sids.add(suit_id)
+                all_artworks.append({
+                    'id': item_id,
+                    'type': item_type,
+                    'filename': os.path.basename(dst_file),
+                    'packname': pack_name,
+                    'created_at': artwork_info['created_at'],
+                    'author_id': author_id,
+                    'author_name': author_name,
+                    'tag_ids': [tag_item['id'] for tag_item in artwork_tags],
+                })
                 pg.update()
                 current_count += 1
                 if current_count >= maxcnt:
@@ -113,8 +159,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
             return
 
         item_cnt = len(os.listdir(img_dir))
-        from ..repack import _timestamp
-        img_pack_file = os.path.join(td, f'mhs_newest_pack_{_timestamp()}.zip')
+        img_pack_file = os.path.join(td, pack_name)
         with zipfile.ZipFile(img_pack_file, 'w') as zf:
             for file in os.listdir(img_dir):
                 zf.write(os.path.join(img_dir, file), file)
@@ -139,8 +184,14 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
         df = pd.DataFrame(records)
         df = df.sort_values(['Filename'], ascending=False)
         df.to_csv(os.path.join(export_dir, 'records.csv'), index=False)
+        all_tags = sorted(all_tags, key=lambda x: (1 if x['type'] == 'custom_tag' else 0, x['type'], x['id']))
+        df_tags = pd.DataFrame(all_tags)
+        df_tags.to_csv(os.path.join(export_dir, 'tags.csv'), index=False)
         with open(os.path.join(export_dir, 'exist_sids.json'), 'w') as f:
             json.dump(sorted(exist_sids), f)
+        all_artworks = sorted(all_artworks, key=lambda x: x['id'])
+        with open(os.path.join(export_dir, 'artworks.json'), 'w') as f:
+            json.dump(all_artworks, f, ensure_ascii=False, sort_keys=True, indent=4)
 
         md_file = os.path.join(export_dir, 'README.md')
         with open(md_file, 'w') as f:
@@ -148,7 +199,13 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
             print('license: mit', file=f)
             print('---', file=f)
             print('', file=f)
+            print('## Packages', file=f)
+            print('', file=f)
             print(df.to_markdown(index=False), file=f)
+            print('', file=f)
+            print('## Tags', file=f)
+            print('', file=f)
+            print(df_tags.to_markdown(index=False), file=f)
 
         upload_directory_as_directory(
             repo_id=repository,
