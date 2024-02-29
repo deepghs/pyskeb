@@ -255,5 +255,5 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_project_order_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
-        maxcnt=5000,
+        maxcnt=1000,
     )
