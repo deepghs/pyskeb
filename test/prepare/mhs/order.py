@@ -150,11 +150,14 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     _, ext = os.path.splitext(urlsplit(e_url).filename)
                     dst_file = os.path.join(img_dir, f'{e_name}{ext}')
                     logging.info(f'Downloading {e_url!r} to {dst_file!r} ...')
-                    download_file(e_url, filename=dst_file, session=session)
-                    if _check_non_anime(dst_file, e_name):
-                        pg_imgs.update()
-                    else:
-                        os.remove(dst_file)
+                    try:
+                        download_file(e_url, filename=dst_file, session=session)
+                        if _check_non_anime(dst_file, e_name):
+                            pg_imgs.update()
+                        else:
+                            os.remove(dst_file)
+                    except (AssertionError, requests.exceptions.RequestException) as err:
+                        logging.error(f'Download of {e_url!r} skipped due to error: {err!r}')
 
                 card_items = project_info['character_cards']
                 for ci, citem in enumerate(card_items):
@@ -172,11 +175,14 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
                     _, ext = os.path.splitext(urlsplit(c_image_url).filename)
                     dst_file = os.path.join(img_dir, f'{c_name}{ext}')
                     logging.info(f'Downloading {c_image_url!r} to {dst_file!r} ...')
-                    download_file(c_image_url, filename=dst_file, session=session)
-                    if _check_non_anime(dst_file, c_name):
-                        pg_imgs.update()
-                    else:
-                        os.remove(dst_file)
+                    try:
+                        download_file(c_image_url, filename=dst_file, session=session)
+                        if _check_non_anime(dst_file, c_name):
+                            pg_imgs.update()
+                        else:
+                            os.remove(dst_file)
+                    except (AssertionError, requests.exceptions.RequestException) as err:
+                        logging.error(f'Download of {c_image_url!r} skipped due to error: {err!r}')
 
             except requests.exceptions.HTTPError as err:
                 status_code = err.response.status_code
