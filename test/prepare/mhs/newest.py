@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import shutil
+import time
 import zipfile
 
 import pandas as pd
@@ -17,7 +18,8 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
-def mhs_newest_crawl(repository: str, maxcnt: int = 500):
+def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60):
+    start_time = time.time()
     session = get_requests_session()
     session.headers.update({
         'User-Agent': get_random_ua(),
@@ -148,8 +150,12 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500):
                 current_count += 1
                 if current_count >= maxcnt:
                     break
+                if time.time() - start_time >= max_time_limit:
+                    break
 
             if current_count >= maxcnt:
+                break
+            if time.time() - start_time >= max_time_limit:
                 break
 
             page += 1
@@ -228,4 +234,5 @@ if __name__ == '__main__':
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
         maxcnt=500,
+        max_time_limit=50 * 60,
     )
