@@ -31,6 +31,7 @@ random.shuffle(all_repos)
 interval = 50
 total = 2500
 pg = tqdm(desc='Total', total=total)
+pg.update(len(exist_names))
 
 if __name__ == '__main__':
     cnt = len(exist_names)
