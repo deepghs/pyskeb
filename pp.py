@@ -20,8 +20,8 @@ hf_fs = get_hf_fs()
 all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
 
-interval = 2
-total = 4000
+interval = 50
+total = 2500
 pg = tqdm(desc='Total', total=total)
 
 if __name__ == '__main__':
