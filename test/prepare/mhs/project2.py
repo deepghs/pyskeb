@@ -84,7 +84,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
             resp.raise_for_status()
 
             projects = resp.json()['projects']
-            if not projects:
+            if not projects: 
                 break
 
             for item in projects:
