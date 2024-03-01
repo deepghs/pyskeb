@@ -6,6 +6,7 @@ import time
 import zipfile
 
 import pandas as pd
+import requests
 from ditk import logging
 from hbutils.scale import size_to_bytes_str
 from hbutils.string import plural_word
@@ -129,7 +130,10 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 _, ext = os.path.splitext(urlsplit(item_url).filename)
                 dst_file = os.path.join(img_dir, f'{item_name}{ext}')
                 logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
-                download_file(item_url, filename=dst_file, session=session)
+                try:
+                    download_file(item_url, filename=dst_file, session=session)
+                except (AssertionError, requests.exceptions.RequestException) as err:
+                    logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
 
                 artwork_tags = artwork_info['tags']
                 for tag_item in artwork_tags:
