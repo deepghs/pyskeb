@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import shutil
+import time
 import warnings
 import zipfile
 
@@ -22,7 +23,8 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
-def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2):
+def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_time_limit=50 * 60):
+    start_time = time.time()
     session = get_requests_session()
     session.headers.update({
         'User-Agent': get_random_ua(),
@@ -164,8 +166,12 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2):
                 current_count += 1
                 if current_count >= maxcnt:
                     break
+                if time.time() - start_time >= max_time_limit:
+                    break
 
             if current_count >= maxcnt:
+                break
+            if time.time() - start_time >= max_time_limit:
                 break
             page += 1
 
@@ -225,5 +231,6 @@ if __name__ == '__main__':
     mhs_project_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
         maxcnt=300,
+        max_time_limit=50 * 60,
         zone=2,
     )

@@ -9,5 +9,6 @@ if __name__ == '__main__':
     mhs_project_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
         maxcnt=300,
+        max_time_limit=50 * 60,
         zone=3,
     )

@@ -4,8 +4,8 @@ name: NMHS P3
 on:
   #  push:
   workflow_dispatch:
-#  schedule:
-#    - cron: '0 */2 * * *'
+  schedule:
+    - cron: '0 */2 * * *'
 #    - cron: '0 12 * * *'
 
 jobs:
