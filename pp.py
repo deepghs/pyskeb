@@ -17,6 +17,7 @@ logging.try_init_root(logging.INFO)
 
 hf_client = get_hf_client()
 hf_fs = get_hf_fs()
+hf_fs_2 = get_hf_fs(os.environ['HF_TOKEN_X'])
 
 remote_repo = 'DeepBase/artists_packs'
 if hf_fs.exists(f'datasets/{remote_repo}/exist_names.json'):
@@ -83,7 +84,7 @@ if __name__ == '__main__':
                         repo_id=remote_repo,
                         hf_token=os.environ['HF_TOKEN_X']
                     )
-                    hf_fs.write_text(
+                    hf_fs_2.write_text(
                         f'datasets/{remote_repo}/exist_names.json',
                         json.dumps(sorted(exist_names)),
                     )
