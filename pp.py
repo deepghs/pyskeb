@@ -20,8 +20,8 @@ hf_fs = get_hf_fs()
 all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
 
-interval = 1
-total = 2000
+interval = 2
+total = 4000
 pg = tqdm(desc='Total', total=total)
 
 if __name__ == '__main__':
@@ -71,5 +71,5 @@ if __name__ == '__main__':
                     )
                     shutil.rmtree(save_dir)
 
-                if cnt >= 2000:
+                if cnt >= total:
                     break
