@@ -42,7 +42,7 @@ if __name__ == '__main__':
                     hf_token=_get_hf_token(),
                 )
 
-                imgs_cnt = len(glob.glob(os.path.join(ttd, '*.json')))
+                imgs_cnt = len(glob.glob(os.path.join(ttd, '.*.json')))
                 logging.info(f'{plural_word(imgs_cnt, "image")} found in {repository!r}.')
 
                 if imgs_cnt < 100:
