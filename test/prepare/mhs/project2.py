@@ -84,6 +84,9 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
             resp.raise_for_status()
 
             projects = resp.json()['projects']
+            if not projects:
+                break
+
             for item in projects:
                 project_id = item['id']
                 suit_id = f'project_{project_id}'
