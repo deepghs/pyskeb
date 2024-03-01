@@ -1,4 +1,5 @@
 import glob
+import json
 import os.path
 import random
 import shutil
@@ -17,6 +18,13 @@ logging.try_init_root(logging.INFO)
 hf_client = get_hf_client()
 hf_fs = get_hf_fs()
 
+remote_repo = 'DeepBase/artists_packs'
+if hf_fs.exists(f'datasets/{remote_repo}/exist_names.json'):
+    exist_names = json.loads(hf_fs.read_text(f'datasets/{remote_repo}/exist_names.json'))
+else:
+    exist_names = []
+exist_names = set(exist_names)
+
 all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
 
@@ -25,7 +33,7 @@ total = 2500
 pg = tqdm(desc='Total', total=total)
 
 if __name__ == '__main__':
-    cnt = 0
+    cnt = len(exist_names)
     with TemporaryDirectory() as otd:
         save_dir = os.path.join(otd, 'save')
 
@@ -36,6 +44,10 @@ if __name__ == '__main__':
                 continue
 
             name = repository.split('/')[-1]
+            if name in exist_names:
+                logging.info(f'Name {name!r} already crawled, skipped.')
+                continue
+
             with TemporaryDirectory() as ttd:
                 download_archive_as_directory(
                     repo_id=repository,
@@ -60,14 +72,19 @@ if __name__ == '__main__':
                 )[:100].export(os.path.join(save_dir, name))
 
                 cnt += 1
+                exist_names.add(name)
                 pg.update()
                 if cnt % interval == 0:
                     archive_name = f'pack_{int(cnt // interval)}.zip'
                     upload_directory_as_archive(
                         local_directory=save_dir,
                         archive_in_repo=archive_name,
-                        repo_id='DeepBase/artists_packs',
+                        repo_id=remote_repo,
                         hf_token=os.environ['HF_TOKEN_X']
+                    )
+                    hf_fs.write_text(
+                        f'datasets/{remote_repo}/exist_names.json',
+                        json.dumps(sorted(exist_names)),
                     )
                     shutil.rmtree(save_dir)
 
