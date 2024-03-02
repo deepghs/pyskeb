@@ -7,21 +7,23 @@ import shutil
 from ditk import logging
 from hbutils.string import plural_word
 from hbutils.system import TemporaryDirectory
-from hfutils.operate import get_hf_client, get_hf_fs, download_archive_as_directory, upload_directory_as_archive
+from hfutils.operate import download_archive_as_directory, upload_directory_as_archive
+from hfutils.operate import get_hf_client, get_hf_fs
 from hfutils.operate.base import _get_hf_token
 from tqdm import tqdm
 from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction
 from waifuc.source import LocalSource
 
-logging.try_init_root(logging.INFO)
+logging.try_init_root(logging.DEBUG)
 
 hf_client = get_hf_client()
 hf_fs = get_hf_fs()
 hf_fs_2 = get_hf_fs(os.environ['HF_TOKEN_X'])
 
 remote_repo = 'DeepBase/artists_packs'
-if hf_fs.exists(f'datasets/{remote_repo}/exist_names.json'):
-    exist_names = json.loads(hf_fs.read_text(f'datasets/{remote_repo}/exist_names.json'))
+
+if hf_fs_2.exists(f'datasets/{remote_repo}/exist_names.json'):
+    exist_names = json.loads(hf_fs_2.read_text(f'datasets/{remote_repo}/exist_names.json'))
 else:
     exist_names = []
 exist_names = set(exist_names)
