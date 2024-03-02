@@ -292,5 +292,5 @@ if __name__ == '__main__':
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
         maxcnt=1000,
-        max_time_limit=45 * 60,
+        max_time_limit=48 * 60,
     )
