@@ -5,6 +5,7 @@ import shutil
 import time
 import zipfile
 
+import dateparser
 import pandas as pd
 import requests
 from ditk import logging
@@ -200,9 +201,13 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         df.to_csv(os.path.join(export_dir, 'records.csv'), index=False)
 
         tags_analysis = {}
+        date_analysis = {}
         for artwork_item in all_artworks:
+            date_str = dateparser.parse(artwork_item['created_at']).strftime('%Y-%m-%d')
+            date_analysis[date_str] = date_analysis.get(date_str, 0) + 1
             for tag_id in artwork_item['tag_ids']:
                 tags_analysis[tag_id] = tags_analysis.get(tag_id, 0) + 1
+        all_cnt = len(all_artworks)
         for tag_item in all_tags:
             tag_item['count'] = tags_analysis.get(tag_item['id'], 0)
         all_tags = sorted(all_tags, key=lambda x: (1 if x['type'] == 'custom_tag' else 0, x['type'], x['id']))
@@ -214,6 +219,8 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         with open(os.path.join(export_dir, 'artworks.json'), 'w') as f:
             json.dump(all_artworks, f, ensure_ascii=False, sort_keys=True, indent=4)
 
+        df_date = pd.DataFrame([{'date': key, 'count': value} for key, value in date_analysis.items()])
+        df_date = df_date.sort_values(['date'], ascending=False)
         md_file = os.path.join(export_dir, 'README.md')
         with open(md_file, 'w') as f:
             print('---', file=f)
@@ -222,13 +229,21 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             print('', file=f)
             print('## Packages', file=f)
             print(f'', file=f)
-            print(f'{plural_word(len(all_artworks), "images")} in total.', file=f)
+            print(df[:20].to_markdown(index=False), file=f)
             print(f'', file=f)
-            print(df.to_markdown(index=False), file=f)
+            print('## Analysis', file=f)
+            print('', file=f)
+            print(f'{plural_word(all_cnt, "images")} in total.', file=f)
+            print('', file=f)
+            print(df_date[:30].to_markdown(index=False), file=f)
             print('', file=f)
             print('## Tags', file=f)
             print('', file=f)
-            print(df_tags.to_markdown(index=False), file=f)
+            print('Only some selected tags are shown.', file=f)
+            print('', file=f)
+            t_df_tags = df_tags
+            t_df_tags = t_df_tags[(t_df_tags['type'] != 'custom_tag') | (t_df_tags['count'] >= 10)]
+            print(t_df_tags.to_markdown(index=False), file=f)
 
         upload_directory_as_directory(
             repo_id=repository,
@@ -243,6 +258,6 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
-        maxcnt=500,
+        maxcnt=1000,
         max_time_limit=50 * 60,
     )
