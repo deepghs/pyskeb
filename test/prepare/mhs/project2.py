@@ -1,3 +1,4 @@
+import itertools
 import json
 import os.path
 import random
@@ -120,11 +121,10 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
         os.makedirs(img_dir, exist_ok=True)
 
         if use_random:
-            # id_source = itertools.chain(
-            #     _iter_project_ids_via_list(session, zone),
-            #     _iter_project_ids_via_random(),
-            # )
-            id_source = _iter_project_ids_via_random()
+            id_source = itertools.chain(
+                _iter_project_ids_via_list(session, zone),
+                _iter_project_ids_via_random(),
+            )
         else:
             id_source = _iter_project_ids_via_list(session, zone)
 
@@ -136,9 +136,22 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                 logging.info(f'Suit item {suit_id!r} already crawled, skipped.')
                 continue
 
-            try:
-                resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
-                resp.raise_for_status()
+            resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
+            if not resp:
+                status_code = resp.status_code
+                if status_code in {401}:
+                    logging.warning(f'Login required for Project {project_id!r}.')
+                elif status_code in {403}:
+                    logging.warning(f'Project {project_id!r} is private or hidden.')
+                elif status_code in {404}:
+                    logging.warning(f'Project {project_id!r} not exists.')
+                elif status_code in {423}:
+                    logging.warning(f'Project {project_id!r} is blocked.')
+                else:
+                    logging.error(f'Project {project_id!r} skipped due to error: {err!r}')
+                    continue
+
+            else:
                 project_info = resp.json()['project']
                 project_name = project_info['name']
                 project_zone = project_info['zone_id']
@@ -185,10 +198,6 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                             os.remove(dst_file)
                     except (AssertionError, requests.exceptions.RequestException) as err:
                         logging.error(f'Download of {c_image_url!r} skipped due to error: {err!r}')
-
-            except requests.exceptions.HTTPError as err:
-                logging.error(f'Project {project_id!r} skipped due to error: {err!r}')
-                continue
 
             exist_sids.add(suit_id)
             pg.update()
