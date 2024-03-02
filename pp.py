@@ -25,6 +25,7 @@ if hf_fs.exists(f'datasets/{remote_repo}/exist_names.json'):
 else:
     exist_names = []
 exist_names = set(exist_names)
+logging.info(f'{plural_word(len(exist_names), "existing name")} found.')
 
 all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
