@@ -218,7 +218,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
             for file in os.listdir(img_dir):
                 zf.write(os.path.join(img_dir, file), file)
                 os.remove(os.path.join(img_dir, file))
-
+ 
         filename = os.path.basename(img_pack_file)
         records.append({
             'Filename': filename,
