@@ -3,6 +3,7 @@ import os.path
 import random
 import re
 import shutil
+import time
 import warnings
 import zipfile
 
@@ -72,7 +73,8 @@ def _check_non_anime(img_file, title) -> bool:
     return True
 
 
-def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
+def mhs_project_order_crawl(repository: str, maxcnt: int = 100, max_time_limit: int = 50 * 60):
+    start_time = time.time()
     session = get_requests_session()
     session.headers.update({
         'User-Agent': get_random_ua(),
@@ -206,6 +208,8 @@ def mhs_project_order_crawl(repository: str, maxcnt: int = 100):
             current_count += 1
             if current_count >= maxcnt:
                 break
+            if time.time() - start_time >= max_time_limit:
+                break
 
         if not has_new:
             logging.info('No update, quit.')
@@ -264,4 +268,5 @@ if __name__ == '__main__':
     mhs_project_order_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
         maxcnt=1000,
+        max_time_limit=50 * 60,
     )
