@@ -1,5 +1,6 @@
 import json
 import os.path
+import random
 import re
 import shutil
 import time
@@ -23,7 +24,52 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
-def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_time_limit=50 * 60):
+def _iter_project_ids_via_list(session: requests.Session, zone: int):
+    page = 1
+    while True:
+        logging.info(f'Requesting for page {page!r}.')
+        resp = session.get(
+            'https://www.mihuashi.com/api/v1/projects',
+            params={'page': str(page), 'zone': str(zone), 'order': '1'}
+        )
+        resp.raise_for_status()
+
+        projects = resp.json()['projects']
+        if not projects:
+            break
+
+        for item in projects:
+            project_id = item['id']
+            yield project_id
+
+        page += 1
+
+
+def _iter_project_ids_via_random():
+    while True:
+        project_id = random.randint(100, 2556530)
+        yield project_id
+
+
+def _check_non_anime(img_file, title) -> bool:
+    try:
+        real_type, _ = anime_real(img_file)
+    except UnidentifiedImageError:
+        warnings.warn(f'Resource {title!r} unidentified as image, skipped.')
+        return False
+    except (IOError, DecompressionBombError) as err:
+        warnings.warn(f'Skipped due to IO error: {err!r}')
+        return False
+    else:
+        if real_type != 'anime':
+            logging.warning(f'Resource {title!r} not an anime image, skipped.')
+            return False
+
+    return True
+
+
+def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_time_limit=50 * 60,
+                      use_random: bool = True):
     start_time = time.time()
     session = get_requests_session()
     session.headers.update({
@@ -73,110 +119,84 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
         img_dir = os.path.join(td, 'images')
         os.makedirs(img_dir, exist_ok=True)
 
+        if use_random:
+            # id_source = itertools.chain(
+            #     _iter_project_ids_via_list(session, zone),
+            #     _iter_project_ids_via_random(),
+            # )
+            id_source = _iter_project_ids_via_random()
+        else:
+            id_source = _iter_project_ids_via_list(session, zone)
+
         current_count = 0
-        page = 1
-        while True:
-            logging.info(f'Requesting for page {page!r}.')
-            resp = session.get(
-                'https://www.mihuashi.com/api/v1/projects',
-                params={'page': str(page), 'zone': str(zone), 'order': '1'}
-            )
-            resp.raise_for_status()
+        for project_id in id_source:
+            suit_id = f'project_{project_id}'
+            logging.info(f'Resource {suit_id!r} confirmed.')
+            if suit_id in exist_sids:
+                logging.info(f'Suit item {suit_id!r} already crawled, skipped.')
+                continue
 
-            projects = resp.json()['projects']
-            if not projects:
-                break
+            try:
+                resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
+                resp.raise_for_status()
+                project_info = resp.json()['project']
+                project_name = project_info['name']
+                project_zone = project_info['zone_id']
 
-            for item in projects:
-                project_id = item['id']
-                suit_id = f'project_{project_id}'
-                logging.info(f'Resource {suit_id!r} confirmed.')
-                if suit_id in exist_sids:
-                    logging.info(f'Suit item {suit_id!r} already crawled, skipped.')
-                    continue
+                owner_info = project_info['owner']
+                owner_name = owner_info['name']
+                owner_id = owner_info['id']
 
-                try:
-                    resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
-                    resp.raise_for_status()
-                    project_info = resp.json()['project']
-                    project_name = project_info['name']
-
-                    owner_info = project_info['owner']
-                    owner_name = owner_info['name']
-                    owner_id = owner_info['id']
-
-                    example_image_items = project_info['example_images']
-                    for ei, eitem in enumerate(example_image_items):
-                        e_url = eitem['url']
-                        e_name = (f'{owner_id}__{_name_safe(owner_name)}__'
-                                  f'{project_id}_z{zone}__{_name_safe(project_name)}__'
-                                  f'e_{ei}')
-                        _, ext = os.path.splitext(urlsplit(e_url).filename)
-                        dst_file = os.path.join(img_dir, f'{e_name}{ext}')
-                        logging.info(f'Downloading {e_url!r} to {dst_file!r} ...')
+                example_image_items = project_info['example_images']
+                for ei, eitem in enumerate(example_image_items):
+                    e_url = eitem['url']
+                    e_name = (f'{owner_id}__{_name_safe(owner_name)}__'
+                              f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
+                              f'e_{ei}')
+                    _, ext = os.path.splitext(urlsplit(e_url).filename)
+                    dst_file = os.path.join(img_dir, f'{e_name}{ext}')
+                    logging.info(f'Downloading {e_url!r} to {dst_file!r} ...')
+                    try:
                         download_file(e_url, filename=dst_file, session=session)
-
-                        try:
-                            real_type, _ = anime_real(dst_file)
-                        except UnidentifiedImageError:
-                            warnings.warn(f'Resource {e_name!r} unidentified as image, skipped.')
+                        if not _check_non_anime(dst_file, e_name):
                             os.remove(dst_file)
-                        except (IOError, DecompressionBombError) as err:
-                            warnings.warn(f'Skipped due to IO error: {err!r}')
-                            os.remove(dst_file)
-                        else:
-                            if real_type != 'anime':
-                                logging.warning(f'Resource {e_name!r} not an anime image, skipped.')
-                                os.remove(dst_file)
+                    except (AssertionError, requests.exceptions.RequestException) as err:
+                        logging.error(f'Download of {e_url!r} skipped due to error: {err!r}')
 
-                    card_items = project_info['character_cards']
-                    for ci, citem in enumerate(card_items):
-                        c_token = citem['token']
-                        c_id = citem['id']
+                card_items = project_info['character_cards']
+                for ci, citem in enumerate(card_items):
+                    c_token = citem['token']
+                    c_id = citem['id']
 
-                        resp = session.get(f'https://www.mihuashi.com/api/v1/character_cards/{c_token}')
-                        resp.raise_for_status()
+                    resp = session.get(f'https://www.mihuashi.com/api/v1/character_cards/{c_token}')
+                    resp.raise_for_status()
 
-                        c_image_url = resp.json()['character_card']['image_url']
-                        c_image_title = resp.json()['character_card']['name']
-                        c_name = (f'{owner_id}__{_name_safe(owner_name)}__'
-                                  f'{project_id}_z{zone}__{_name_safe(project_name)}__'
-                                  f'c_{c_id}__{_name_safe(c_image_title)}')
-                        _, ext = os.path.splitext(urlsplit(c_image_url).filename)
-                        dst_file = os.path.join(img_dir, f'{c_name}{ext}')
-                        logging.info(f'Downloading {c_image_url!r} to {dst_file!r} ...')
+                    c_image_url = resp.json()['character_card']['image_url']
+                    c_image_title = resp.json()['character_card']['name']
+                    c_name = (f'{owner_id}__{_name_safe(owner_name)}__'
+                              f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
+                              f'c_{c_id}__{_name_safe(c_image_title)}')
+                    _, ext = os.path.splitext(urlsplit(c_image_url).filename)
+                    dst_file = os.path.join(img_dir, f'{c_name}{ext}')
+                    logging.info(f'Downloading {c_image_url!r} to {dst_file!r} ...')
+                    try:
                         download_file(c_image_url, filename=dst_file, session=session)
-
-                        try:
-                            real_type, _ = anime_real(dst_file)
-                        except UnidentifiedImageError:
-                            warnings.warn(f'Resource {c_name!r} unidentified as image, skipped.')
+                        if not _check_non_anime(dst_file, c_name):
                             os.remove(dst_file)
-                        except (IOError, DecompressionBombError) as err:
-                            warnings.warn(f'Skipped due to IO error: {err!r}')
-                            os.remove(dst_file)
-                        else:
-                            if real_type != 'anime':
-                                logging.warning(f'Resource {c_name!r} not an anime image, skipped.')
-                                os.remove(dst_file)
+                    except (AssertionError, requests.exceptions.RequestException) as err:
+                        logging.error(f'Download of {c_image_url!r} skipped due to error: {err!r}')
 
-                except requests.exceptions.HTTPError as err:
-                    logging.error(f'Project {project_id!r} skipped due to error: {err!r}')
-                    continue
+            except requests.exceptions.HTTPError as err:
+                logging.error(f'Project {project_id!r} skipped due to error: {err!r}')
+                continue
 
-                exist_sids.add(suit_id)
-                pg.update()
-                current_count += 1
-                if current_count >= maxcnt:
-                    break
-                if time.time() - start_time >= max_time_limit:
-                    break
-
+            exist_sids.add(suit_id)
+            pg.update()
+            current_count += 1
             if current_count >= maxcnt:
                 break
             if time.time() - start_time >= max_time_limit:
                 break
-            page += 1
 
         if not os.listdir(img_dir):
             logging.warning('No images found, quit.')
@@ -233,7 +253,7 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_project_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_PROJECT'],
-        maxcnt=1000,
+        maxcnt=10,
         max_time_limit=50 * 60,
         zone=2,
     )
