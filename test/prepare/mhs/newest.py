@@ -1,9 +1,12 @@
+import itertools
 import json
 import os.path
+import random
 import re
 import shutil
 import time
 import zipfile
+from typing import Iterator
 
 import pandas as pd
 import requests
@@ -19,7 +22,38 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
-def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60):
+# actually the max page is 1000, but 500 is faster
+def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int = 500) -> Iterator[int]:
+    page = 1
+    while True:
+        logging.info(f'Requesting for page {page!r}.')
+        resp = session.get(
+            'https://www.mihuashi.com/api/v1/artworks/search',
+            params={
+                'page': str(page),
+                'type': 'recent',
+            }
+        )
+        resp.raise_for_status()
+
+        for item in resp.json()['artworks']:
+            item_id = item['id']
+            yield item_id
+
+        page += 1
+        if page > max_page_limit:
+            break
+
+
+min_id, max_id = 10558855, 13560534
+
+
+def _iter_artwork_ids_randomly() -> Iterator[int]:
+    while True:
+        yield random.randint(min_id, max_id)
+
+
+def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True):
     start_time = time.time()
     session = get_requests_session()
     session.headers.update({
@@ -94,31 +128,39 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         img_dir = os.path.join(td, 'images')
         os.makedirs(img_dir, exist_ok=True)
 
-        page = 1
         current_count = 0
-        while True:
-            logging.info(f'Requesting for page {page!r}.')
-            resp = session.get(
-                'https://www.mihuashi.com/api/v1/artworks/search',
-                params={
-                    'page': str(page),
-                    'type': 'recent',
-                }
+        if use_random:
+            id_source = itertools.chain(
+                _iter_artwork_ids_from_page(session),
+                _iter_artwork_ids_randomly(),
             )
-            resp.raise_for_status()
+            id_source = _iter_artwork_ids_randomly()
+        else:
+            id_source = _iter_artwork_ids_from_page(session)
 
-            for item in resp.json()['artworks']:
-                item_id = item['id']
-                item_type = item['artwork_type']
-                suit_id = f'artwork_{item_id}'
-                logging.info(f'Resource {suit_id!r} confirmed.')
-                if suit_id in exist_sids:
-                    logging.info(f'Resource {suit_id!r} already crawled, skipped.')
+        for item_id in id_source:
+            suit_id = f'artwork_{item_id}'
+            logging.info(f'Resource {suit_id!r} confirmed.')
+            if suit_id in exist_sids:
+                logging.info(f'Resource {suit_id!r} already crawled, skipped.')
+                continue
+
+            resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
+            if not resp.ok:
+                if resp.status_code == 404:
+                    logging.warning(f'Resource {suit_id!r} not exist, skipped.')
+                elif resp.status_code in {403}:
+                    logging.warning(f'Resource {suit_id!r} is private or hidden.')
+                elif resp.status_code in {404}:
+                    logging.warning(f'Resource {suit_id!r} not exists.')
+                elif resp.status_code in {423}:
+                    logging.warning(f'Resource {suit_id!r} is blocked.')
+                else:
+                    logging.error(f'Resource {suit_id!r} skipped due to error: {err!r}')
                     continue
 
-                resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
-                resp.raise_for_status()
-
+            else:
+                item_type = resp.json()['artwork']['artwork_type']
                 author_info = resp.json()['artwork']['author']
                 author_id = author_info['id']
                 author_name = author_info['name']
@@ -141,31 +183,22 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                         all_tags.append(tag_item)
                         all_tag_ids.add(tag_item['id'])
 
-                exist_sids.add(suit_id)
-                all_artworks.append({
-                    'id': item_id,
-                    'type': item_type,
-                    'filename': os.path.basename(dst_file),
-                    'packname': pack_name,
-                    'created_at': artwork_info['created_at'],
-                    'author_id': author_id,
-                    'author_name': author_name,
-                    'tag_ids': [tag_item['id'] for tag_item in artwork_tags],
-                })
-                pg.update()
-                current_count += 1
-                if current_count >= maxcnt:
-                    break
-                if time.time() - start_time >= max_time_limit:
-                    break
-
+            exist_sids.add(suit_id)
+            all_artworks.append({
+                'id': item_id,
+                'type': item_type,
+                'filename': os.path.basename(dst_file),
+                'packname': pack_name,
+                'created_at': artwork_info['created_at'],
+                'author_id': author_id,
+                'author_name': author_name,
+                'tag_ids': [tag_item['id'] for tag_item in artwork_tags],
+            })
+            pg.update()
+            current_count += 1
             if current_count >= maxcnt:
                 break
             if time.time() - start_time >= max_time_limit:
-                break
-
-            page += 1
-            if page > 1000:
                 break
 
         if not os.listdir(img_dir):
@@ -243,6 +276,6 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
-        maxcnt=500,
+        maxcnt=10,
         max_time_limit=50 * 60,
     )
