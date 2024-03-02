@@ -46,7 +46,7 @@ def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int =
             break
 
 
-min_id, max_id = 10000000, 13560534
+min_id, max_id = 5000000, 13560534
 
 
 def _iter_artwork_ids_randomly() -> Iterator[int]:
