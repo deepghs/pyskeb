@@ -14,7 +14,7 @@ from tqdm import tqdm
 from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction
 from waifuc.source import LocalSource
 
-logging.try_init_root(logging.DEBUG)
+logging.try_init_root(logging.INFO)
 
 hf_client = get_hf_client()
 hf_fs = get_hf_fs()
