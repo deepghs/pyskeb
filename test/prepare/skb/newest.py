@@ -114,7 +114,7 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             id_source = itertools.chain(
                 _iter_artwork_ids_from_page(max_count_limit=1000),
                 _iter_artwork_ids_in_queue(queue, inc),
-            )
+            ) 
         else:
             id_source = _iter_artwork_ids_from_page(max_count_limit=1000),
 
