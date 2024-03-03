@@ -291,6 +291,6 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
-        maxcnt=1000,
+        maxcnt=2000,
         max_time_limit=48 * 60,
     )
