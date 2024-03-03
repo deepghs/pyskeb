@@ -1,5 +1,6 @@
 import re
 from itertools import islice
+from typing import Tuple
 
 from pyskeb.client.client import SkebClient
 from .url import extract_urls
@@ -7,11 +8,15 @@ from .url import extract_urls
 client = SkebClient()
 
 
+def split_username_and_id_from_path(path: str) -> Tuple[str, int]:
+    matching = re.fullmatch(r'^/?@(?P<username>[\s\S]+?)/works/(?P<work_id>\d+?)/?$', path)
+    username, work_id = matching.group('username'), int(matching.group('work_id'))
+    return username, work_id
+
+
 def list_newest_posts(limit: int = 200):
     for item in islice(client.iter_art_pages(), limit):
-        matching = re.fullmatch(r'^/?@(?P<username>[\s\S]+?)/works/(?P<work_id>\d+?)/?$', item['path'])
-        username, work_id = matching.group('username'), int(matching.group('work_id'))
-
+        username, work_id = split_username_and_id_from_path(item['path'])
         yield username, work_id
 
 
