@@ -295,6 +295,6 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     skb_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_SKB_NEWEST'],
-        maxcnt=20,
+        maxcnt=3000,
         max_time_limit=45 * 60,
     )
