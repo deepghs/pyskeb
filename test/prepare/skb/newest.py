@@ -129,6 +129,17 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             info = client.get_post(username, post_id)
             item_id = info['id']
 
+            if info.get('similar_works'):
+                for sitem in info['similar_works']:
+                    susername, spid = split_username_and_id_from_path(sitem['path'])
+                    s_suit_id = f'{susername}_{spid}'
+                    if s_suit_id not in exist_sids and s_suit_id not in queue_suit_ids:
+                        queue_suit_ids.add(s_suit_id)
+                        queue.append({
+                            'username': susername,
+                            'post_id': spid,
+                        })
+
             if 'client' not in info:
                 logging.info(f'No client for this work {suit_id!r}, skipped')
 
@@ -175,16 +186,6 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                         download_file(item_url, filename=dst_file, session=client._session)
                     except (AssertionError, requests.exceptions.RequestException) as err:
                         logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
-
-                    for sitem in info['similar_works']:
-                        susername, spid = split_username_and_id_from_path(sitem['path'])
-                        s_suit_id = f'{susername}_{spid}'
-                        if s_suit_id not in exist_sids and s_suit_id not in queue_suit_ids:
-                            queue_suit_ids.add(s_suit_id)
-                            queue.append({
-                                'username': susername,
-                                'post_id': spid,
-                            })
 
                     all_artworks.append({
                         'id': item_id,
