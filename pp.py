@@ -35,7 +35,7 @@ all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
 
 interval = 50
-total = 5000
+total = 13000
 pg = tqdm(desc='Total', total=total)
 pg.update(len(exist_names))
 
