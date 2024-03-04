@@ -126,82 +126,96 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 logging.info(f'Resource {suit_id!r} already crawled, skipped.')
                 continue
 
-            info = client.get_post(username, post_id)
-            item_id = info['id']
-
-            if info.get('similar_works'):
-                for sitem in info['similar_works']:
-                    susername, spid = split_username_and_id_from_path(sitem['path'])
-                    s_suit_id = f'{susername}_{spid}'
-                    if s_suit_id not in exist_sids and s_suit_id not in queue_suit_ids:
-                        queue_suit_ids.add(s_suit_id)
-                        queue.append({
-                            'username': susername,
-                            'post_id': spid,
-                        })
-
-            if 'client' not in info:
-                logging.info(f'No client for this work {suit_id!r}, skipped')
-
+            try:
+                info = client.get_post(username, post_id)
+            except requests.exceptions.HTTPError as err:
+                status_code = err.response.status_code
+                if status_code in {401}:
+                    logging.warning(f'Login required for Resource {suit_id!r}.')
+                elif status_code in {403}:
+                    logging.warning(f'Resource {suit_id!r} is private or hidden.')
+                elif status_code in {404}:
+                    logging.warning(f'Resource {suit_id!r} not exists.')
+                elif status_code in {423}:
+                    logging.warning(f'Resource {suit_id!r} is blocked.')
+                else:
+                    logging.error(f'Resource {suit_id!r} skipped due to error: {err!r}')
+                    continue
             else:
-                client_info = info['client']
-                client_id = client_info['id']
-                client_name = client_info['screen_name']
+                item_id = info['id']
+                if info.get('similar_works'):
+                    for sitem in info['similar_works']:
+                        susername, spid = split_username_and_id_from_path(sitem['path'])
+                        s_suit_id = f'{susername}_{spid}'
+                        if s_suit_id not in exist_sids and s_suit_id not in queue_suit_ids:
+                            queue_suit_ids.add(s_suit_id)
+                            queue.append({
+                                'username': susername,
+                                'post_id': spid,
+                            })
 
-                creator_info = info['creator']
-                creator_id = creator_info['id']
-                creator_name = creator_info['screen_name']
-
-                item_name = f'{creator_id}_{creator_name}__{client_id}_{client_name}__{item_id}'
-                item_url = info.get('article_image_url')
-                if not item_url:
-                    logging.warning(f'No article image for this work {suit_id!r}.')
+                if 'client' not in info:
+                    logging.info(f'No client for this work {suit_id!r}, skipped')
 
                 else:
-                    body = info['body']
-                    cleaned_body = body
-                    for url in extract_urls(body):
-                        cleaned_body = cleaned_body.replace(url, '')
-                    tags = [tag for tag in info['tag_list'] if tag.lower() in cleaned_body.lower()]
-                    final_tags = []
-                    for tag in tags:
-                        if tag.lower() in all_tags_map:
-                            tag = all_tags_map[tag.lower()]['name']
-                        else:
-                            tag_data = {
-                                'name': tag,
-                            }
-                            all_tags.append(tag_data)
-                            all_tags_map[tag.lower()] = tag_data
-                        final_tags.append(tag)
+                    client_info = info['client']
+                    client_id = client_info['id']
+                    client_name = client_info['screen_name']
 
-                    _, ext = os.path.splitext(urlsplit(item_url).filename)
-                    if not ext:
-                        fmt = urlsplit(item_url).query_dict.get('fm')
-                        if fmt:
-                            ext = f'.{fmt}'
-                    dst_file = os.path.join(img_dir, f'{item_name}{ext}')
-                    logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
-                    try:
-                        download_file(item_url, filename=dst_file, session=client._session)
-                    except (AssertionError, requests.exceptions.RequestException) as err:
-                        logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
+                    creator_info = info['creator']
+                    creator_id = creator_info['id']
+                    creator_name = creator_info['screen_name']
 
-                    all_artworks.append({
-                        'id': item_id,
-                        'post_id': post_id,
-                        'creator_id': creator_id,
-                        'creator_name': creator_name,
-                        'client_id': client_id,
-                        'client_name': client_name,
-                        'filename': os.path.basename(dst_file),
-                        'packname': pack_name,
-                        'body': body,
-                        'article_image_url': info['article_image_url'],
-                        'preview_url': info['preview_url'],
-                        'og_image_url': info['og_image_url'],
-                        'tags': final_tags,
-                    })
+                    item_name = f'{creator_id}_{creator_name}__{client_id}_{client_name}__{item_id}'
+                    item_url = info.get('article_image_url')
+                    if not item_url:
+                        logging.warning(f'No article image for this work {suit_id!r}.')
+
+                    else:
+                        body = info['body']
+                        cleaned_body = body
+                        for url in extract_urls(body):
+                            cleaned_body = cleaned_body.replace(url, '')
+                        tags = [tag for tag in info['tag_list'] if tag.lower() in cleaned_body.lower()]
+                        final_tags = []
+                        for tag in tags:
+                            if tag.lower() in all_tags_map:
+                                tag = all_tags_map[tag.lower()]['name']
+                            else:
+                                tag_data = {
+                                    'name': tag,
+                                }
+                                all_tags.append(tag_data)
+                                all_tags_map[tag.lower()] = tag_data
+                            final_tags.append(tag)
+
+                        _, ext = os.path.splitext(urlsplit(item_url).filename)
+                        if not ext:
+                            fmt = urlsplit(item_url).query_dict.get('fm')
+                            if fmt:
+                                ext = f'.{fmt}'
+                        dst_file = os.path.join(img_dir, f'{item_name}{ext}')
+                        logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
+                        try:
+                            download_file(item_url, filename=dst_file, session=client._session)
+                        except (AssertionError, requests.exceptions.RequestException) as err:
+                            logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
+
+                        all_artworks.append({
+                            'id': item_id,
+                            'post_id': post_id,
+                            'creator_id': creator_id,
+                            'creator_name': creator_name,
+                            'client_id': client_id,
+                            'client_name': client_name,
+                            'filename': os.path.basename(dst_file),
+                            'packname': pack_name,
+                            'body': body,
+                            'article_image_url': info['article_image_url'],
+                            'preview_url': info['preview_url'],
+                            'og_image_url': info['og_image_url'],
+                            'tags': final_tags,
+                        })
 
             exist_sids.add(suit_id)
             pg.update()
