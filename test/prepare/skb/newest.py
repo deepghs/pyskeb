@@ -99,7 +99,7 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 file_in_repo='tags.csv',
                 hf_token=hf_token,
             )
-            all_tags = pd.read_csv(tags_csv).to_dict('records')
+            all_tags = pd.read_csv(tags_csv, na_filter=False).to_dict('records')
             all_tags_map = {tag_item['name'].lower(): tag_item for tag_item in all_tags}
             os.remove(tags_csv)
         else:
