@@ -22,6 +22,7 @@ from imgutils.validate import anime_real
 from tqdm import tqdm
 
 from pyskeb.utils import download_file, get_requests_session, get_random_ua
+from .order import _url_fix
 from ..base import hf_fs, hf_client, hf_token
 
 
@@ -162,7 +163,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
 
                 example_image_items = project_info['example_images']
                 for ei, eitem in enumerate(example_image_items):
-                    e_url = eitem['url']
+                    e_url = _url_fix(eitem['url'])
                     e_name = (f'{owner_id}__{_name_safe(owner_name)}__'
                               f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
                               f'e_{ei}')
@@ -184,7 +185,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                     resp = session.get(f'https://www.mihuashi.com/api/v1/character_cards/{c_token}')
                     resp.raise_for_status()
 
-                    c_image_url = resp.json()['character_card']['image_url']
+                    c_image_url = _url_fix(resp.json()['character_card']['image_url'])
                     c_image_title = resp.json()['character_card']['name']
                     c_name = (f'{owner_id}__{_name_safe(owner_name)}__'
                               f'{project_id}_z{project_zone}__{_name_safe(project_name)}__'
