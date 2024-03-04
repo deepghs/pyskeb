@@ -34,8 +34,9 @@ logging.info(f'{plural_word(len(exist_names), "existing name")} found.')
 all_repos = list(hf_client.list_datasets(author='StyleMuseum'))
 random.shuffle(all_repos)
 
-interval = 50
-total = 2500
+interval = 5
+# total = 2500
+total = 5
 pg = tqdm(desc='Total', total=total)
 pg.update(len(exist_names))
 
