@@ -61,6 +61,9 @@ class FileRenameAction(ProcessAction):
 
 if __name__ == '__main__':
     cnt = len(exist_names)
+    current_pkg_cnt = len(hf_fs_2.glob(f'datasets/{remote_repo}/pack_*.zip'))
+    logging.info(f'Current package count: {current_pkg_cnt}')
+    pkg_cnt = 0
     with TemporaryDirectory() as otd:
         save_dir = os.path.join(otd, 'save')
 
@@ -117,10 +120,12 @@ if __name__ == '__main__':
                 )[:100].export(os.path.join(save_dir, name))
 
                 cnt += 1
+                pkg_cnt += 1
                 exist_names.add(name)
                 pg.update()
-                if cnt % interval == 0:
-                    archive_name = f'pack_{int(cnt // interval)}.zip'
+                if pkg_cnt % interval == 0:
+                    current_pkg_cnt += 1
+                    archive_name = f'pack_{int(current_pkg_cnt)}.zip'
                     upload_directory_as_archive(
                         local_directory=save_dir,
                         archive_in_repo=archive_name,
