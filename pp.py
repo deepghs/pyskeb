@@ -4,6 +4,7 @@ import os.path
 import random
 import shutil
 
+import dateparser
 from ditk import logging
 from hbutils.string import plural_word
 from hbutils.system import TemporaryDirectory
@@ -11,7 +12,8 @@ from hfutils.operate import download_archive_as_directory, upload_directory_as_a
 from hfutils.operate import get_hf_client, get_hf_fs
 from hfutils.operate.base import _get_hf_token
 from tqdm import tqdm
-from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction
+from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction, FilterAction
+from waifuc.model import ImageItem
 from waifuc.source import LocalSource
 
 logging.try_init_root(logging.INFO)
@@ -20,7 +22,7 @@ hf_client = get_hf_client()
 hf_fs = get_hf_fs()
 hf_fs_2 = get_hf_fs(os.environ['HF_TOKEN_X'])
 
-remote_repo = 'DeepBase/artists_packs'
+remote_repo = 'DeepBase/artists_packs_new'
 
 if hf_fs_2.exists(f'datasets/{remote_repo}/exist_names.json'):
     exist_names = json.loads(hf_fs_2.read_text(f'datasets/{remote_repo}/exist_names.json'))
@@ -36,6 +38,15 @@ interval = 50
 total = 2500
 pg = tqdm(desc='Total', total=total)
 pg.update(len(exist_names))
+
+
+class TimeFilterAction(FilterAction):
+    def __init__(self, time_threshold: float):
+        self.time_threshold = time_threshold
+
+    def check(self, item: ImageItem) -> bool:
+        return dateparser.parse(item.meta['danbooru']['created_at']).timestamp() >= self.time_threshold
+
 
 if __name__ == '__main__':
     cnt = len(exist_names)
@@ -65,12 +76,27 @@ if __name__ == '__main__':
                 imgs_cnt = len(glob.glob(os.path.join(ttd, '.*.json')))
                 logging.info(f'{plural_word(imgs_cnt, "image")} found in {repository!r}.')
 
-                if imgs_cnt < 100:
+                if imgs_cnt < 150:
                     logging.info(f'Not enough images in repository {repository!r}, skipped.')
                     continue
 
+                all_created_ats = []
+                for json_file in glob.glob(os.path.join(ttd, '.*.json')):
+                    with open(json_file, 'r') as f:
+                        data = json.load(f)
+                        created_at = dateparser.parse(data['danbooru']['created_at']).timestamp()
+                        all_created_ats.append(created_at)
+                min_time, max_time = min(all_created_ats), max(all_created_ats)
+                draw_duration = max_time - min_time
+                if draw_duration > 60 * 60 * 24 * 365 * 3:
+                    logging.info(f'Duration of artist {repository!r} too short, skipped.')
+                    continue
+                all_created_ats = sorted(all_created_ats, key=lambda x: -x)
+                time_threshold = all_created_ats[100]
+
                 os.makedirs(save_dir, exist_ok=True)
                 LocalSource(ttd, shuffle=True).attach(
+                    TimeFilterAction(time_threshold),
                     ModeConvertAction('RGB', 'white'),
                     AlignMaxAreaAction(1024),
                     FileExtAction(quality=90, ext='.jpg'),
