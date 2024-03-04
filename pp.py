@@ -56,7 +56,7 @@ class FileRenameAction(ProcessAction):
             **item.meta,
             'filename': f'danbooru_{danbooru_id}_{timestamp}.jpg',
         }
-        yield ImageItem(item.image, meta_info)
+        return ImageItem(item.image, meta_info)
 
 
 if __name__ == '__main__':
