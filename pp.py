@@ -50,7 +50,7 @@ class TimeFilterAction(FilterAction):
 
 class FileRenameAction(ProcessAction):
     def process(self, item: ImageItem) -> ImageItem:
-        danbooru_id = item.meta["id"]
+        danbooru_id = item.meta['danbooru']["id"]
         timestamp = int(dateparser.parse(item.meta['danbooru']['created_at']).timestamp())
         meta_info = {
             **item.meta,
