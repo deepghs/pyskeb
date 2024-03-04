@@ -88,7 +88,7 @@ if __name__ == '__main__':
                         all_created_ats.append(created_at)
                 min_time, max_time = min(all_created_ats), max(all_created_ats)
                 draw_duration = max_time - min_time
-                if draw_duration > 60 * 60 * 24 * 365 * 3:
+                if draw_duration < 60 * 60 * 24 * 365 * 3:
                     logging.info(f'Duration of artist {repository!r} too short, skipped.')
                     continue
                 all_created_ats = sorted(all_created_ats, key=lambda x: -x)
