@@ -49,7 +49,7 @@ def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int =
 min_id, max_id = 5000000, 13560534
 
 
-def _iter_artwork_ids_randomly() -> Iterator[int]:
+def _iter_artwork_ids_randomly(min_id, max_id) -> Iterator[int]:
     while True:
         yield random.randint(min_id, max_id)
 
@@ -130,9 +130,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         os.makedirs(img_dir, exist_ok=True)
 
         if use_random:
+            current_max_id = max(item['id'] for item in all_artworks)
+            logging.info(f'Current max id: {current_max_id!r}.')
             id_source = itertools.chain(
                 _iter_artwork_ids_from_page(session),
-                _iter_artwork_ids_randomly(),
+                _iter_artwork_ids_randomly(min_id, current_max_id),
             )
         else:
             id_source = _iter_artwork_ids_from_page(session)
