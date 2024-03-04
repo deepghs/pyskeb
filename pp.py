@@ -96,11 +96,20 @@ if __name__ == '__main__':
                     continue
 
                 all_created_ats = []
+                not_danbooru = False
                 for json_file in glob.glob(os.path.join(ttd, '.*.json')):
                     with open(json_file, 'r') as f:
                         data = json.load(f)
+                        if 'danbooru' not in data:
+                            not_danbooru = True
+                            break
                         created_at = dateparser.parse(data['danbooru']['created_at']).timestamp()
                         all_created_ats.append(created_at)
+
+                if not_danbooru:
+                    logging.info(f'Repository {repository!r} is not danbooru, skipped.')
+                    exist_names.add(name)
+                    continue
                 min_time, max_time = min(all_created_ats), max(all_created_ats)
                 draw_duration = max_time - min_time
                 if draw_duration < 60 * 60 * 24 * 365 * 3:
