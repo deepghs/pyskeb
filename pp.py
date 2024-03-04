@@ -12,7 +12,7 @@ from hfutils.operate import download_archive_as_directory, upload_directory_as_a
 from hfutils.operate import get_hf_client, get_hf_fs
 from hfutils.operate.base import _get_hf_token
 from tqdm import tqdm
-from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction, FilterAction
+from waifuc.action import AlignMaxAreaAction, FileExtAction, ModeConvertAction, FilterAction, ProcessAction
 from waifuc.model import ImageItem
 from waifuc.source import LocalSource
 
@@ -48,6 +48,17 @@ class TimeFilterAction(FilterAction):
         return dateparser.parse(item.meta['danbooru']['created_at']).timestamp() >= self.time_threshold
 
 
+class FileRenameAction(ProcessAction):
+    def process(self, item: ImageItem) -> ImageItem:
+        danbooru_id = item.meta["id"]
+        timestamp = int(dateparser.parse(item.meta['danbooru']['created_at']).timestamp())
+        meta_info = {
+            **item.meta,
+            'filename': f'danbooru_{danbooru_id}_{timestamp}.jpg',
+        }
+        yield ImageItem(item.image, meta_info)
+
+
 if __name__ == '__main__':
     cnt = len(exist_names)
     with TemporaryDirectory() as otd:
@@ -78,6 +89,7 @@ if __name__ == '__main__':
 
                 if imgs_cnt < 150:
                     logging.info(f'Not enough images in repository {repository!r}, skipped.')
+                    exist_names.add(name)
                     continue
 
                 all_created_ats = []
@@ -90,6 +102,7 @@ if __name__ == '__main__':
                 draw_duration = max_time - min_time
                 if draw_duration < 60 * 60 * 24 * 365 * 3:
                     logging.info(f'Duration of artist {repository!r} too short, skipped.')
+                    exist_names.add(name)
                     continue
                 all_created_ats = sorted(all_created_ats, key=lambda x: -x)
                 time_threshold = all_created_ats[100]
@@ -99,6 +112,7 @@ if __name__ == '__main__':
                     TimeFilterAction(time_threshold),
                     ModeConvertAction('RGB', 'white'),
                     AlignMaxAreaAction(1024),
+                    FileRenameAction(),
                     FileExtAction(quality=90, ext='.jpg'),
                 )[:100].export(os.path.join(save_dir, name))
 
