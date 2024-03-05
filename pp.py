@@ -70,7 +70,7 @@ if __name__ == '__main__':
         save_dir = os.path.join(otd, 'save')
 
         for ritem in all_repos:
-            if time.time() - start_time >= 60 * 60 * 5.7:
+            if (time.time() - start_time) >= 60 * 60 * 5.7:
                 break
 
             repository = ritem.id
