@@ -28,18 +28,21 @@ def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int =
     page = 1
     while True:
         logging.info(f'Requesting for page {page!r}.')
-        resp = session.get(
-            'https://www.mihuashi.com/api/v1/artworks/search',
-            params={
-                'page': str(page),
-                'type': 'recent',
-            }
-        )
-        resp.raise_for_status()
-
-        for item in resp.json()['artworks']:
-            item_id = item['id']
-            yield item_id
+        try:
+            resp = session.get(
+                'https://www.mihuashi.com/api/v1/artworks/search',
+                params={
+                    'page': str(page),
+                    'type': 'recent',
+                }
+            )
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as err:
+            logging.warning(f'Page {page} skipped due to error: {err!r}')
+        else:
+            for item in resp.json()['artworks']:
+                item_id = item['id']
+                yield item_id
 
         page += 1
         if page > max_page_limit:
@@ -141,6 +144,9 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
 
         current_count = 0
         for item_id in id_source:
+            if time.time() - start_time >= max_time_limit:
+                break
+
             suit_id = f'artwork_{item_id}'
             logging.info(f'Resource {suit_id!r} confirmed.')
             if suit_id in exist_sids:
