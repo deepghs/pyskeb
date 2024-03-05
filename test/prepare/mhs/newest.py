@@ -153,7 +153,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 logging.info(f'Resource {suit_id!r} already crawled, skipped.')
                 continue
 
-            resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
+            try:
+                resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
+            except requests.exceptions.RequestException as err:
+                logging.info(f'Resource {suit_id!r} skipped due to request error: {err!r}')
+                continue
             if not resp.ok:
                 if resp.status_code in {401}:
                     logging.warning(f'Login required for Resource {suit_id!r}.')
