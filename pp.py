@@ -3,6 +3,7 @@ import json
 import os.path
 import random
 import shutil
+import time
 
 import dateparser
 from ditk import logging
@@ -60,6 +61,7 @@ class FileRenameAction(ProcessAction):
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     cnt = len(exist_names)
     current_pkg_cnt = len(hf_fs_2.glob(f'datasets/{remote_repo}/pack_*.zip'))
     logging.info(f'Current package count: {current_pkg_cnt}')
@@ -68,6 +70,9 @@ if __name__ == '__main__':
         save_dir = os.path.join(otd, 'save')
 
         for ritem in all_repos:
+            if time.time() - start_time >= 60 * 60 * 5.7:
+                break
+
             repository = ritem.id
             if not hf_fs.exists(f'datasets/{repository}/dataset-raw.zip'):
                 logging.info(f'No data pack in {repository!r}, skipped.')
