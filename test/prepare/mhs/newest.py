@@ -188,6 +188,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                     download_file(item_url, filename=dst_file, session=session)
                 except (AssertionError, requests.exceptions.RequestException) as err:
                     logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
+                    continue
 
                 artwork_tags = artwork_info['tags']
                 for tag_item in artwork_tags:

@@ -137,8 +137,12 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                 logging.info(f'Suit item {suit_id!r} already crawled, skipped.')
                 continue
 
-            resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
-            if not resp:
+            try:
+                resp = session.get(f'https://www.mihuashi.com/api/v1/projects/{project_id}')
+            except requests.exceptions.RequestException as err:
+                logging.info(f'Resource {suit_id!r} skipped due to request error: {err!r}')
+                continue
+            if not resp.ok:
                 status_code = resp.status_code
                 if status_code in {401}:
                     logging.warning(f'Login required for Project {project_id!r}.')
@@ -176,6 +180,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                             os.remove(dst_file)
                     except (AssertionError, requests.exceptions.RequestException) as err:
                         logging.error(f'Download of {e_url!r} skipped due to error: {err!r}')
+                        continue
 
                 card_items = project_info['character_cards']
                 for ci, citem in enumerate(card_items):
@@ -199,6 +204,7 @@ def mhs_project_crawl(repository: str, maxcnt: int = 100, zone: int = 2, max_tim
                             os.remove(dst_file)
                     except (AssertionError, requests.exceptions.RequestException) as err:
                         logging.error(f'Download of {c_image_url!r} skipped due to error: {err!r}')
+                        continue
 
             exist_sids.add(suit_id)
             pg.update()
