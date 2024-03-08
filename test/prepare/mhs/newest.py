@@ -6,7 +6,7 @@ import re
 import shutil
 import time
 import zipfile
-from typing import Iterator
+from typing import Iterator, Optional
 
 import dateparser
 import pandas as pd
@@ -57,13 +57,20 @@ def _iter_artwork_ids_randomly(min_id, max_id) -> Iterator[int]:
         yield random.randint(min_id, max_id)
 
 
-def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True):
+def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True,
+                     proxy_pool: Optional[str] = None):
     start_time = time.time()
     session = get_requests_session()
     session.headers.update({
         'User-Agent': get_random_ua(),
         'Referer': 'https://www.mihuashi.com/artworks',
     })
+    if proxy_pool:
+        logging.info('Proxy pool enabled!')
+        session.proxies.update({
+            'http': proxy_pool,
+            'https': proxy_pool,
+        })
 
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
@@ -306,4 +313,5 @@ if __name__ == '__main__':
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
         maxcnt=2000,
         max_time_limit=48 * 60,
+        proxy_pool=os.environ.get('PP_MHS'),
     )
