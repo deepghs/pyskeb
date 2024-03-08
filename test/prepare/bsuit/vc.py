@@ -194,5 +194,5 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     bsuit_crawl(
         repository=os.environ['REMOTE_REPOSITORY_BSUIT_V'],
-        maxcnt=500,
+        maxcnt=50000,
     )

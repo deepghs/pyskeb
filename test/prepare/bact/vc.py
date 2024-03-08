@@ -171,5 +171,5 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     bact_crawl(
         repository=os.environ['REMOTE_REPOSITORY_BACT_V'],
-        maxcnt=100,
+        maxcnt=10000,
     )
