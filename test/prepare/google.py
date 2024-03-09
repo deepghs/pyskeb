@@ -1,4 +1,3 @@
-import json
 import mimetypes
 import os
 import os.path as osp
@@ -7,10 +6,11 @@ import re
 import textwrap
 import time
 import warnings
+from http.cookiejar import MozillaCookieJar
 
-import six
 from gdown import download
-from gdown.download import get_url_from_gdrive_confirmation, _get_session
+from gdown._indent import indent
+from gdown.download import get_url_from_gdrive_confirmation, _get_session, _get_filename_from_response
 from gdown.download_folder import _download_and_parse_google_drive_link
 from gdown.parse_url import parse_url
 from hbutils.system import urlsplit
@@ -44,21 +44,36 @@ def _wait():
     _last_time = time.time()
 
 
-def _get_filename_from_id(resource_id, use_cookies: bool = False):
+def _get_filename_from_id(resource_id, use_cookies: bool = False, proxy=None, fuzzy=False, verify=True):
     url = "https://drive.google.com/uc?id={id}".format(id=resource_id)
+    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"  # NOQA: E501
+
     url_origin = url
 
-    sess, cookies_file = _get_session(use_cookies=use_cookies, return_cookies_file=True)
-    gdrive_file_id, is_gdrive_download_link = parse_url(url, warning=True)
+    sess, cookies_file = _get_session(
+        proxy=proxy,
+        use_cookies=use_cookies,
+        user_agent=user_agent,
+        return_cookies_file=True,
+    )
+
+    gdrive_file_id, is_gdrive_download_link = parse_url(url, warning=not fuzzy)
+
+    if fuzzy and gdrive_file_id:
+        # overwrite the url with fuzzy match of a file id
+        url = "https://drive.google.com/uc?id={id}".format(id=gdrive_file_id)
+        url_origin = url
+        is_gdrive_download_link = True
 
     while True:
-        res = sess.get(url, stream=True, verify=True)
+        res = sess.get(url, stream=True, verify=verify)
+
+        if not (gdrive_file_id and is_gdrive_download_link):
+            break
 
         if url == url_origin and res.status_code == 500:
             # The file could be Google Docs or Spreadsheets.
-            url = "https://drive.google.com/open?id={id}".format(
-                id=gdrive_file_id
-            )
+            url = "https://drive.google.com/open?id={id}".format(id=gdrive_file_id)
             continue
 
         if res.headers["Content-Type"].startswith("text/html"):
@@ -105,48 +120,38 @@ def _get_filename_from_id(resource_id, use_cookies: bool = False):
             continue
 
         if use_cookies:
-            if not osp.exists(osp.dirname(cookies_file)):
-                os.makedirs(osp.dirname(cookies_file))
-            # Save cookies
-            with open(cookies_file, "w") as f:
-                cookies = [
-                    (k, v)
-                    for k, v in sess.cookies.items()
-                    if not k.startswith("download_warning_")
-                ]
-                json.dump(cookies, f, indent=2)
+            cookie_jar = MozillaCookieJar(cookies_file)
+            for cookie in sess.cookies:
+                cookie_jar.set_cookie(cookie)
+            cookie_jar.save()
 
         if "Content-Disposition" in res.headers:
             # This is the file
-            break
-        if not (gdrive_file_id and is_gdrive_download_link):
             break
 
         # Need to redirect with confirmation
         try:
             url = get_url_from_gdrive_confirmation(res.text)
         except FileURLRetrievalError as e:
+            print(e)
             message = (
                 "Failed to retrieve file url:\n\n{}\n\n"
                 "You may still be able to access the file from the browser:"
                 "\n\n\t{}\n\n"
                 "but Gdown can't. Please check connections and permissions."
             ).format(
-                textwrap.indent("\n".join(textwrap.wrap(str(e))), prefix="\t"),
+                indent("\n".join(textwrap.wrap(str(e))), prefix="\t"),
                 url_origin,
             )
             raise FileURLRetrievalError(message)
 
+    filename_from_url = None
     if gdrive_file_id and is_gdrive_download_link:
-        content_disposition = six.moves.urllib_parse.unquote(
-            res.headers["Content-Disposition"]
-        )
-        m = re.search(r"filename\*=UTF-8''(.*)", content_disposition)
-        filename_from_url = m.groups()[0]
-        filename_from_url = filename_from_url.replace(osp.sep, "_")
-    else:
+        filename_from_url = _get_filename_from_response(response=res)
+    if filename_from_url is None:
         filename_from_url = osp.basename(url)
-
+    if filename_from_url is not None:
+        filename_from_url = filename_from_url.encode('ISO-8859-1').decode()
     return filename_from_url
 
 
@@ -156,7 +161,7 @@ def get_google_resource_id(drive_url):
     if file_id is not None:
         return f'googledrive_{file_id}'
     else:
-        sess = _get_session(use_cookies=False)
+        sess = _get_session(use_cookies=False, proxy=None, user_agent=None)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         if gdrive_file is not None:
             fid = re.sub(r'\?[\s\S]+?$', '', gdrive_file.id)
@@ -170,7 +175,7 @@ def get_google_drive_ids(drive_url):
     if file_id is not None:
         return [(file_id, [_get_filename_from_id(file_id, use_cookies=False)])]
     else:
-        sess = _get_session(use_cookies=False)
+        sess = _get_session(use_cookies=False, proxy=None, user_agent=None)
         return_code, gdrive_file = _download_and_parse_google_drive_link(sess, drive_url, remaining_ok=True)
         if not gdrive_file:
             return []
