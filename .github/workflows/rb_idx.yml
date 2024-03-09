@@ -75,4 +75,4 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          python -m test.prepare.mhs.newest
+          python -m test.prepare.rb.index
