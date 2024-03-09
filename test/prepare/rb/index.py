@@ -1,6 +1,7 @@
 import itertools
 import json
 import math
+import mimetypes
 import os
 import re
 import time
@@ -119,12 +120,14 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
             logging.info(f'No url available for post {item["id"]}, skipped.')
             continue
 
+        mtype, _ = mimetypes.guess_type(url)
         record = {
             'id': item['id'],
             'hash': item['hash'],
             'directory': item['directory'],
             'height': item['height'],
             'width': item['width'],
+            'type': mtype,
             'image': item['image'],
             'change': item['change'],
             'parent_id': item['parent_id'],
@@ -147,7 +150,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         df_records = df_records.sort_values(['id'], ascending=False)
         df_records.to_csv(os.path.join(td, 'realbooru.csv'), index=False)
         df_records_shown = df_records[:50]
-        df_records_shown = df_records_shown[['id', 'width', 'height', 'tags', 'url']]
+        df_records_shown = df_records_shown[['id', 'width', 'height', 'type', 'tags', 'url']]
 
         df_tags = pd.DataFrame(list(tags.values()))
         df_tags = df_tags.sort_values(['count', 'name'], ascending=[False, True])
@@ -193,5 +196,5 @@ if __name__ == '__main__':
         repository=os.environ['REMOTE_REPOSITORY_RB'],
         quit_page_when_exist=False,
         max_cnt=50000,
-        max_time_limit=50 * 60,
+        max_time_limit=47 * 60,
     )
