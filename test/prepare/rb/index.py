@@ -24,7 +24,7 @@ from ..base import hf_fs, hf_client, hf_token
 
 def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
                    max_cnt: int = 10000, max_time_limit: int = 50 * 60,
-                   rate_limit: int = 1, rate_interval: float = 0.2):
+                   rate_limit: int = 1, rate_interval: float = 0.1):
     start_time = time.time()
     rate = Rate(rate_limit, int(math.ceil(Duration.SECOND * rate_interval)))
     limiter = Limiter(rate, max_delay=1 << 32)
