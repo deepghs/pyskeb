@@ -7,6 +7,7 @@ import re
 import time
 from typing import Iterator
 
+import httpx
 import pandas as pd
 import requests.exceptions
 from ditk import logging
@@ -122,6 +123,9 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
             pg.update()
 
             logging.info(f'No url available for post {item["id"]}, skipped.')
+            continue
+        except (requests.exceptions.RequestException, httpx.HTTPError) as err:
+            logging.info(f'Resource post {item["id"]} unreached due to {err!r}, skipped')
             continue
 
         mtype, _ = mimetypes.guess_type(url)
