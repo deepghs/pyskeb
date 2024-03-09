@@ -4,8 +4,8 @@ name: RB Index
 on:
   #  push:
   workflow_dispatch:
-#  schedule:
-#    - cron: '45 */1 * * *'
+  schedule:
+    - cron: '45 */1 * * *'
 #    - cron: '0 12 * * *'
 
 jobs:

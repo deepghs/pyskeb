@@ -1,5 +1,6 @@
 import itertools
 import json
+import math
 import os
 import re
 import time
@@ -12,16 +13,22 @@ from hbutils.string import plural_word
 from hbutils.system import TemporaryDirectory
 from hfutils.operate import upload_directory_as_directory
 from huggingface_hub import hf_hub_download
+from pyrate_limiter import Duration, Rate, Limiter
 from tqdm import tqdm
 from waifuc.source import RealbooruSource
 from waifuc.source.web import NoURL
+from waifuc.utils import srequest
 
 from ..base import hf_fs, hf_client, hf_token
 
 
 def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
-                   max_cnt: int = 10000, max_time_limit: int = 50 * 60):
+                   max_cnt: int = 10000, max_time_limit: int = 50 * 60,
+                   rate_limit: int = 1, rate_interval: float = 0.2):
     start_time = time.time()
+    rate = Rate(rate_limit, int(math.ceil(Duration.SECOND * rate_interval)))
+    limiter = Limiter(rate, max_delay=1 << 32)
+
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
         hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
         attr_lines = hf_fs.read_text(f'datasets/{repository}/.gitattributes').splitlines(keepends=False)
@@ -57,7 +64,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
     def _iter_items_from_pages() -> Iterator[dict]:
         current_page = 1
         while True:
-            resp = s.session.get('https://realbooru.com/index.php', params={
+            resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
                 'page': 'dapi',
                 's': 'post',
                 'q': 'index',
@@ -65,7 +72,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
                 'limit': '100',
                 'json': '1',
                 # 'id': '561887',
-            })
+            }, raise_for_status=False)
             try:
                 resp.raise_for_status()
                 _ = resp.json()
@@ -102,6 +109,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         logging.info(f'Post {item["id"]} confirmed.')
 
         try:
+            limiter.try_acquire('access')
             url = s._select_url(item)
         except NoURL:
             exist_ids.add(item['id'])
@@ -184,6 +192,6 @@ if __name__ == '__main__':
     crawl_rb_index(
         repository=os.environ['REMOTE_REPOSITORY_RB'],
         quit_page_when_exist=False,
-        max_cnt=10000,
+        max_cnt=50000,
         max_time_limit=50 * 60,
     )
