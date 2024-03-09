@@ -63,8 +63,12 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
     s = RealbooruSource(['rating:safe'], min_size=5000)
 
     def _iter_items_from_pages() -> Iterator[dict]:
+        page_rate = Rate(1, int(math.ceil(Duration.SECOND * 1.0)))
+        page_limiter = Limiter(page_rate, max_delay=1 << 32)
+
         current_page = 1
         while True:
+            page_limiter.try_acquire('page')
             resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
                 'page': 'dapi',
                 's': 'post',
