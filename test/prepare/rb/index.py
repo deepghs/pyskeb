@@ -114,6 +114,13 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
 
         logging.info(f'Post {item["id"]} confirmed.')
 
+        if not item["hash"] or not item["image"]:
+            exist_ids.add(item['id'])
+            cnt += 1
+            pg.update()
+            logging.info(f'Post {item["id"]} is empty, skipped.')
+            continue
+
         try:
             limiter.try_acquire('access')
             url = s._select_url(item)
