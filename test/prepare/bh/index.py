@@ -125,10 +125,7 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
                     break
 
                 for item in lst:
-                    if item['id'] in exist_ids:
-                        if quit_page_when_exist:
-                            return
-                    else:
+                    if item['id'] not in exist_ids:
                         yield item
 
                 current_page += 1
@@ -220,7 +217,7 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     crawl_bh_index(
         repository=os.environ['REMOTE_REPOSITORY_BH'],
-        quit_page_when_exist=False,
+        quit_page_when_exist=True,
         max_cnt=100000,
         max_time_limit=45 * 60,
     )
