@@ -3,6 +3,7 @@ import json
 import math
 import mimetypes
 import os
+import random
 import re
 import time
 from typing import Iterator
@@ -67,8 +68,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         page_rate = Rate(1, int(math.ceil(Duration.SECOND * 1.0)))
         page_limiter = Limiter(page_rate, max_delay=1 << 32)
 
-        current_page = max(len(records) // 100, 1)
-        # current_page = 1
+        current_page = 1
         while True:
             page_limiter.try_acquire('page')
             resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
@@ -96,11 +96,49 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
 
             current_page += 1
 
-    # def _iter_from_random_ids():
-    #     if quit_page_when_exist:
-    #         range(1, 6000000)
+    def _iter_from_random_ids():
+        page_rate = Rate(1, int(math.ceil(Duration.SECOND * 0.4)))
+        page_limiter = Limiter(page_rate, max_delay=1 << 32)
 
-    source = itertools.chain(_iter_items_from_pages())
+        if quit_page_when_exist:
+            full_id_pool = set(range(1, max(exist_ids)))
+            full_id_pool = full_id_pool - exist_ids
+            full_ids = list(full_id_pool)
+
+            remake_interval = 100
+            i = 0
+            while full_ids:
+                post_id = random.choice(full_ids)
+                if post_id in exist_ids:
+                    full_id_pool.remove(post_id)
+                else:
+                    page_limiter.try_acquire('randomize')
+                    resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
+                        'page': 'dapi',
+                        's': 'post',
+                        'q': 'index',
+                        'json': '1',
+                        'id': str(post_id),
+                    }, raise_for_status=False)
+
+                    try:
+                        resp.raise_for_status()
+                        _ = resp.json()
+                    except (requests.exceptions.RequestException, json.JSONDecodeError) as err:
+                        logging.info(f'Randomize failed on post {post_id} due to {err!r}')
+                    else:
+                        if not resp.json():
+                            exist_ids.add(post_id)
+                            full_ids.remove(post_id)
+                        else:
+                            yield from resp.json()
+
+                i += 1
+                if i % remake_interval == 0:
+                    full_id_pool = full_id_pool - exist_ids
+                    full_ids = list(full_id_pool)
+
+    source = itertools.chain(_iter_items_from_pages(), _iter_from_random_ids())
     cnt = 0
     pg = tqdm(total=max_cnt)
     for item in source:
@@ -210,7 +248,7 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     crawl_rb_index(
         repository=os.environ['REMOTE_REPOSITORY_RB'],
-        quit_page_when_exist=False,
+        quit_page_when_exist=True,
         max_cnt=50000,
         max_time_limit=47 * 60,
     )
