@@ -37,12 +37,14 @@ def _get_tags_data():
             text = item('a').text().strip()
             type_ = item('span').attr('class').strip().split('-')[-1]
             posts = int(row('td:nth-child(1)').text().strip())
+            is_ambiguous = 'ambiguous' in row('td:nth-child(3)').text().strip().lower()
             if text not in exist_names:
                 exist_names.add(text)
                 data.append({
                     'name': text,
                     'type': type_,
                     'posts': posts,
+                    'ambiguous': is_ambiguous,
                 })
                 pid += 1
                 pg.update()
