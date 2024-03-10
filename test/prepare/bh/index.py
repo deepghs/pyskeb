@@ -3,6 +3,7 @@ import json
 import math
 import mimetypes
 import os
+import random
 import re
 import time
 from typing import Iterator
@@ -97,10 +98,43 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
 
             current_page += 1
 
-    # def _iter_from_random_ids():
-    #     pass
+    def _iter_from_random_ids():
+        page_rate = Rate(1, int(math.ceil(Duration.SECOND * 1.0)))
+        page_limiter = Limiter(page_rate, max_delay=1 << 32)
+        d_tags = pd.read_csv(hf_hub_download(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='index_tags.csv',
+        ))
+        all_tags = sorted(d_tags[d_tags['count'] >= 1]['name'])
 
-    source = itertools.chain(_iter_items_from_pages())
+        while True:
+            current_tag = random.choice(all_tags)
+            current_page = 1
+            while True:
+                page_limiter.try_acquire('page')
+                resp = srequest(s.session, 'GET', 'http://behoimi.org/post/index.json', params={
+                    'page': str(current_page),
+                    'limit': '100',
+                    'tags': current_tag,
+                }, raise_for_status=False)
+                try:
+                    resp.raise_for_status()
+                    lst = _safe_json(resp.text)
+                except (requests.exceptions.RequestException, json.JSONDecodeError, httpx.HTTPError) as err:
+                    logging.info(f'Paginate failed on page {current_page!r} due to {err!r}')
+                    break
+
+                for item in lst:
+                    if item['id'] in exist_ids:
+                        if quit_page_when_exist:
+                            return
+                    else:
+                        yield item
+
+                current_page += 1
+
+    source = itertools.chain(_iter_items_from_pages(), _iter_from_random_ids())
     cnt = 0
     pg = tqdm(total=max_cnt)
     for item in source:
