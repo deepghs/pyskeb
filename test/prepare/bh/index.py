@@ -124,6 +124,9 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
                     logging.info(f'Paginate failed on page {current_page!r} due to {err!r}')
                     break
 
+                if not lst:
+                    break
+
                 for item in lst:
                     if item['id'] not in exist_ids:
                         yield item
