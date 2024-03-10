@@ -295,7 +295,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             print('Only some selected tags are shown.', file=f)
             print('', file=f)
             t_df_tags = df_tags
-            t_df_tags = t_df_tags[(t_df_tags['type'] != 'custom_tag') | (t_df_tags['count'] >= 10)]
+            t_df_tags = t_df_tags[(t_df_tags['type'] != 'custom_tag') | (t_df_tags['count'] >= 50)]
             print(t_df_tags.to_markdown(index=False), file=f)
 
         upload_directory_as_directory(
