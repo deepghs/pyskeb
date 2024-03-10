@@ -115,9 +115,10 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
             else:
                 current_tag_count = 0
             all_tag_count = all_tags_count_map.get(current_tag, 0)
-            if current_tag_count > all_tag_count * 0.9 or current_tag_count >= 90000:
+            if current_tag_count > all_tag_count * 0.95 or current_tag_count >= 95000:
                 logging.info(f'Current tag {current_tag!r} reach safe limit '
                              f'(current posts: {current_tag_count!r}, total posts: {all_tag_count!r}), skipped.')
+                all_tags.remove(current_tag)
                 continue
 
             logging.info(f'Getting posts of {current_tag!r} ({current_tag_count!r}/{all_tag_count}) ...')
@@ -144,6 +145,8 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
                         yield item
 
                 current_page += 1
+
+            all_tags.remove(current_tag)
 
     source = itertools.chain(_iter_items_from_pages(), _iter_from_random_ids())
     cnt = 0
