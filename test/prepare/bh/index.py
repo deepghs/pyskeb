@@ -22,6 +22,16 @@ from waifuc.utils import srequest
 
 from ..base import hf_fs, hf_client, hf_token
 
+_REPLACEMENTS = [
+    ('\x10', ''),
+]
+
+
+def _safe_json(text):
+    for from_, to_ in _REPLACEMENTS:
+        text = text.replace(from_, to_)
+    return json.loads(text)
+
 
 def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
                    max_cnt: int = 200000, max_time_limit: int = 50 * 60):
@@ -73,12 +83,12 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
             }, raise_for_status=False)
             try:
                 resp.raise_for_status()
-                _ = resp.json()
+                lst = _safe_json(resp.text)
             except (requests.exceptions.RequestException, json.JSONDecodeError, httpx.HTTPError) as err:
                 logging.info(f'Paginate failed on page {current_page!r} due to {err!r}')
                 return
 
-            for item in resp.json():
+            for item in lst:
                 if item['id'] in exist_ids:
                     if quit_page_when_exist:
                         return
