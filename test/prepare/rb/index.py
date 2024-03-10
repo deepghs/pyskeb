@@ -209,7 +209,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         df_tags = pd.DataFrame(list(tags.values()))
         df_tags = df_tags.sort_values(['count', 'name'], ascending=[False, True])
         df_tags.to_csv(os.path.join(td, 'tags.csv'), index=False)
-        df_tags_shown = df_tags[:500]
+        df_tags_shown = df_tags[:500][['name', 'count']]
 
         with open(os.path.join(td, 'exist_ids.json'), 'w') as f:
             json.dump(sorted(exist_ids), f)

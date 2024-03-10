@@ -41,7 +41,7 @@ def _get_tags_data():
                 exist_names.add(text)
                 data.append({
                     'name': text,
-                    'type_': type_,
+                    'type': type_,
                     'posts': posts,
                 })
                 pid += 1
