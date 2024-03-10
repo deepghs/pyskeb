@@ -105,10 +105,22 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
             repo_type='dataset',
             filename='index_tags.csv',
         ))
+        all_tags_count_map = dict(zip(d_tags['name'], d_tags['count']))
         all_tags = sorted(d_tags[d_tags['count'] >= 1]['name'])
 
         while True:
             current_tag = random.choice(all_tags)
+            if current_tag in tags:
+                current_tag_count = tags[current_tag]['count']
+            else:
+                current_tag_count = 0
+            all_tag_count = all_tags_count_map.get(current_tag, 0)
+            if current_tag_count > all_tag_count * 0.9 or current_tag_count >= 90000:
+                logging.info(f'Current tag {current_tag!r} reach safe limit '
+                             f'(current posts: {current_tag_count!r}, total posts: {all_tag_count!r}), skipped.')
+                continue
+
+            logging.info(f'Getting posts of {current_tag!r} ({current_tag_count!r}/{all_tag_count}) ...')
             current_page = 1
             while True:
                 page_limiter.try_acquire('page')
