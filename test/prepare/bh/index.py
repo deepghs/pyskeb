@@ -108,7 +108,7 @@ def crawl_bh_index(repository: str, quit_page_when_exist: bool = True,
         all_tags_count_map = dict(zip(d_tags['name'], d_tags['count']))
         all_tags = sorted(d_tags[d_tags['count'] >= 1]['name'])
 
-        while True:
+        while all_tags:
             current_tag = random.choice(all_tags)
             if current_tag in tags:
                 current_tag_count = tags[current_tag]['count']
