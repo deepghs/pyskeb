@@ -114,7 +114,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
             else:
                 current_tag_count = 0
             all_tag_count = all_tags_count_map.get(current_tag, 0)
-            if current_tag_count > all_tag_count * 0.95 or current_tag_count >= 190000:
+            if current_tag_count > all_tag_count * 0.99 or current_tag_count >= 195000:
                 logging.info(f'Current tag {current_tag!r} reach safe limit '
                              f'(current posts: {current_tag_count!r}, total posts: {all_tag_count!r}), skipped.')
                 all_tags.remove(current_tag)
