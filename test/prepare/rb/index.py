@@ -97,46 +97,60 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
             current_page += 1
 
     def _iter_from_random_ids():
-        page_rate = Rate(1, int(math.ceil(Duration.SECOND * 0.4)))
+        page_rate = Rate(1, int(math.ceil(Duration.SECOND * 1.0)))
         page_limiter = Limiter(page_rate, max_delay=1 << 32)
+        d_tags = pd.read_csv(hf_hub_download(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='index_tags.csv',
+        ), keep_default_na=False)
+        all_tags_count_map = dict(zip(d_tags['name'], d_tags['posts']))
+        all_tags = sorted(map(str, d_tags[d_tags['posts'] >= 1]['name']))
 
-        if quit_page_when_exist:
-            full_id_pool = set(range(1, max(exist_ids)))
-            full_id_pool = full_id_pool - exist_ids
-            full_ids = list(full_id_pool)
+        while all_tags:
+            current_tag = random.choice(all_tags)
+            if current_tag in tags:
+                current_tag_count = tags[current_tag]['count']
+            else:
+                current_tag_count = 0
+            all_tag_count = all_tags_count_map.get(current_tag, 0)
+            if current_tag_count > all_tag_count * 0.95 or current_tag_count >= 190000:
+                logging.info(f'Current tag {current_tag!r} reach safe limit '
+                             f'(current posts: {current_tag_count!r}, total posts: {all_tag_count!r}), skipped.')
+                all_tags.remove(current_tag)
+                continue
 
-            remake_interval = 100
-            i = 0
-            while full_ids:
-                post_id = random.choice(full_ids)
-                if post_id in exist_ids:
-                    full_id_pool.remove(post_id)
-                else:
-                    page_limiter.try_acquire('randomize')
-                    resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
-                        'page': 'dapi',
-                        's': 'post',
-                        'q': 'index',
-                        'json': '1',
-                        'id': str(post_id),
-                    }, raise_for_status=False)
+            logging.info(f'Getting posts of {current_tag!r} ({current_tag_count!r}/{all_tag_count}) ...')
+            current_page = 1
+            while True:
+                page_limiter.try_acquire('page')
+                resp = srequest(s.session, 'GET', 'https://realbooru.com/index.php', params={
+                    'page': 'dapi',
+                    's': 'post',
+                    'q': 'index',
+                    'pid': str(current_page),
+                    'limit': '100',
+                    'json': '1',
+                    'tags': ' '.join([current_tag]),
+                    # 'id': '561887',
+                }, raise_for_status=False)
+                try:
+                    resp.raise_for_status()
+                    lst = resp.json()
+                except (requests.exceptions.RequestException, json.JSONDecodeError, httpx.HTTPError) as err:
+                    logging.info(f'Paginate failed on page {current_page!r} due to {err!r}')
+                    break
 
-                    try:
-                        resp.raise_for_status()
-                        _ = resp.json()
-                    except (requests.exceptions.RequestException, json.JSONDecodeError) as err:
-                        logging.info(f'Randomize failed on post {post_id} due to {err!r}')
-                    else:
-                        if not resp.json():
-                            exist_ids.add(post_id)
-                            full_ids.remove(post_id)
-                        else:
-                            yield from resp.json()
+                if not lst:
+                    break
 
-                i += 1
-                if i % remake_interval == 0:
-                    full_id_pool = full_id_pool - exist_ids
-                    full_ids = list(full_id_pool)
+                for item in lst:
+                    if item['id'] not in exist_ids:
+                        yield item
+
+                current_page += 1
+
+            all_tags.remove(current_tag)
 
     source = itertools.chain(_iter_items_from_pages(), _iter_from_random_ids())
     cnt = 0
