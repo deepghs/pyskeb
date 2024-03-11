@@ -311,5 +311,5 @@ if __name__ == '__main__':
     skb_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_SKB_NEWEST'],
         maxcnt=3000,
-        max_time_limit=45 * 60,
+        max_time_limit=(60 * 5 + 40) * 60,
     )
