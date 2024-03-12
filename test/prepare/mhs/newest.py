@@ -113,7 +113,8 @@ class MHSSession:
                     self.refresh()
                     continue
 
-        resp.raise_for_status()
+            resp.raise_for_status()
+            break
 
 
 min_id, max_id = 5000000, 13560534
