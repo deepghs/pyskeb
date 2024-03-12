@@ -130,7 +130,7 @@ def _iter_artwork_ids_randomly(min_id, max_id) -> Iterator[int]:
 def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True,
                      proxy_pool: Optional[str] = None):
     start_time = time.time()
-    rate = Rate(1, int(math.ceil(Duration.SECOND * 4.5)))
+    rate = Rate(1, int(math.ceil(Duration.SECOND * 3)))
     limiter = Limiter(rate, max_delay=1 << 32)
     client = MHSSession(proxy_pool=proxy_pool)
     client.homepage()
