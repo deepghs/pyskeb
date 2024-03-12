@@ -25,7 +25,7 @@ from ..base import hf_fs, hf_client, hf_token
 
 # actually the max page is 1000, but 500 is faster
 def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] = 'recent',
-                                q: Optional[str] = None, max_page_limit: int = 1000) -> Iterator[int]:
+                                q: Optional[str] = None, max_page_limit: int = 1000, refresh_fn=None) -> Iterator[int]:
     page = 1
     while True:
         logging.info(f'Requesting for page {page!r}.')
@@ -41,6 +41,10 @@ def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] 
                 'https://www.mihuashi.com/api/v1/artworks/search',
                 params=params
             )
+            if resp.status_code == 403 and refresh_fn is not None:
+                refresh_fn()
+                continue
+
             resp.raise_for_status()
         except requests.exceptions.RequestException as err:
             logging.warning(f'Page {page} skipped due to error: {err!r}')
@@ -77,13 +81,20 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             'https': proxy_pool,
         })
 
-        logging.info('Refreshing ip pool ...')
-        from .pp import refresh_pp
-        refresh_pp(
-            bd_token=os.environ['BD_TOKEN'],
-            zone=os.environ['BD_MHS_ZONE']
-        )
-        time.sleep(2.0)
+        def _refresh():
+            logging.info('Refreshing ip pool ...')
+            from .pp import refresh_pp
+            refresh_pp(
+                bd_token=os.environ['BD_TOKEN'],
+                zone=os.environ['BD_MHS_ZONE']
+            )
+            time.sleep(2.0)
+
+        _refresh()
+
+    else:
+        def _refresh():
+            raise OSError('IP get banned, quit.')
 
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
@@ -169,11 +180,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             current_max_id = max(item['id'] for item in all_artworks)
             logging.info(f'Current max id: {current_max_id!r}.')
             id_source = itertools.chain(
-                _iter_artwork_ids_from_page(session, q=q, order=order),
+                _iter_artwork_ids_from_page(session, q=q, order=order, refresh_fn=_refresh),
                 _iter_artwork_ids_randomly(min_id, current_max_id),
             )
         else:
-            id_source = _iter_artwork_ids_from_page(session, q=q, order=order)
+            id_source = _iter_artwork_ids_from_page(session, q=q, order=order, refresh_fn=_refresh)
 
         current_count = 0
         for item_id in id_source:
@@ -337,6 +348,7 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     mhs_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
+        use_random=False,
         maxcnt=2000,
         max_time_limit=48 * 60,
         proxy_pool=os.environ.get('PP_MHS'),
