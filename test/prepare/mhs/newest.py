@@ -75,9 +75,20 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
 
-    logging.info('Access artwork page list ...')
-    resp = session.get('https://www.mihuashi.com/artworks')
-    resp.raise_for_status()
+    while True:
+        logging.info('Access artwork page list ...')
+        resp = session.get('https://www.mihuashi.com/artworks')
+        if not resp.ok and resp.status_code == 403:
+            from .pp import refresh_pp
+            logging.info('IP get banned, refreshing ip pool.')
+            refresh_pp(
+                bd_token=os.environ['BD_TOKEN'],
+                zone=os.environ['BD_MHS_ZONE']
+            )
+            time.sleep(2.0)
+        else:
+            resp.raise_for_status()
+            break
 
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
         hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
