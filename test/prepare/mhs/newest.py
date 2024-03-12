@@ -111,7 +111,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
 
     else:
         def _refresh():
-            raise IpStopped('IP get banned, quit.')
+            logging.info('Cleaning cookies and reset user agent ...')
+            session.cookies.clear()
+            session.headers.update({
+                'User-Agent': get_random_ua(),
+            })
 
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
