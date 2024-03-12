@@ -1,5 +1,6 @@
 import itertools
 import json
+import math
 import os.path
 import random
 import re
@@ -17,6 +18,7 @@ from hbutils.string import plural_word
 from hbutils.system import TemporaryDirectory, urlsplit
 from hfutils.operate import download_file_to_file, upload_directory_as_directory
 from huggingface_hub import hf_hub_url
+from pyrate_limiter import Rate, Limiter, Duration
 from tqdm import tqdm
 
 from pyskeb.utils import download_file, get_requests_session, get_random_ua
@@ -128,6 +130,8 @@ def _iter_artwork_ids_randomly(min_id, max_id) -> Iterator[int]:
 def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True,
                      proxy_pool: Optional[str] = None):
     start_time = time.time()
+    rate = Rate(1, int(math.ceil(Duration.SECOND * 4.5)))
+    limiter = Limiter(rate, max_delay=1 << 32)
     client = MHSSession(proxy_pool=proxy_pool)
     client.homepage()
 
@@ -229,6 +233,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                     logging.info(f'Resource {suit_id!r} already crawled, skipped.')
                     continue
 
+                limiter.try_acquire('info')
                 try:
                     resp = client.session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
                 except requests.exceptions.RequestException as err:
