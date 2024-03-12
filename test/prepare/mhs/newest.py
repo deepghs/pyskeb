@@ -27,46 +27,93 @@ class IpStopped(Exception):
     pass
 
 
-# actually the max page is 1000, but 500 is faster
-def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] = 'recent',
-                                q: Optional[str] = None, max_page_limit: int = 1000, refresh_fn=None) -> Iterator[int]:
-    page = 1
-    retries = 0
-    while True:
-        logging.info(f'Requesting for page {page!r}.')
-        try:
-            params = {
-                'page': str(page),
-            }
-            if order:
-                params['type'] = order
-            if q:
-                params['q'] = q
-            resp = session.get(
-                'https://www.mihuashi.com/api/v1/artworks/search',
-                params=params
+class MHSSession:
+    def __init__(self, proxy_pool: Optional[str] = None):
+        self.session: Optional[requests.Session] = None
+        self.proxy_pool = proxy_pool
+        self.refresh()
+
+    def refresh(self):
+        self.session = get_requests_session()
+        self.session.headers.update({
+            'User-Agent': get_random_ua(),
+            'Referer': 'https://www.mihuashi.com/artworks',
+            'Accept': 'application/json, text/plain',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+        })
+        if self.proxy_pool:
+            logging.info('Proxy pool enabled!')
+            self.session.proxies.update({
+                'http': self.proxy_pool,
+                'https': self.proxy_pool,
+            })
+
+            from .pp import refresh_pp
+            refresh_pp(
+                bd_token=os.environ['BD_TOKEN'],
+                zone=os.environ['BD_MHS_ZONE']
             )
-            if resp.status_code == 403 and refresh_fn is not None:
-                logging.info('Ip ban detected, just refresh ip pool.')
-                refresh_fn()
+            time.sleep(5.0)
+
+    def iter_artwork_ids_from_page(self, order: Optional[str] = 'recent', q: Optional[str] = None,
+                                   max_page_limit: int = 1000) -> Iterator[int]:
+        page = 1
+        retries = 0
+        while True:
+            logging.info(f'Requesting for page {page!r}.')
+            try:
+                params = {
+                    'page': str(page),
+                }
+                if order:
+                    params['type'] = order
+                if q:
+                    params['q'] = q
+                resp = self.session.get(
+                    'https://www.mihuashi.com/api/v1/artworks/search',
+                    params=params
+                )
+                if resp.status_code == 403:
+                    retries += 1
+                    if retries > 5:
+                        raise IpStopped('Max refresh try exceeded.')
+                    else:
+                        logging.info('Ip ban detected, just refresh ip pool.')
+                        self.refresh()
+                        continue
+
+                resp.raise_for_status()
+            except requests.exceptions.RequestException as err:
+                logging.warning(f'Page {page} skipped due to error: {err!r}')
+            else:
+                for item in resp.json()['artworks']:
+                    item_id = item['id']
+                    yield item_id
+
+            page += 1
+            retries = 0
+            if page > max_page_limit:
+                break
+
+    def homepage(self):
+        logging.info('Access artwork page list ...')
+        retries = 0
+        while True:
+            resp = self.session.get('https://www.mihuashi.com/artworks', headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,'
+                          'application/signed-exchange;v=b3;q=0.7',
+            })
+            if resp.status_code == 403:
                 retries += 1
                 if retries > 5:
                     raise IpStopped('Max refresh try exceeded.')
                 else:
+                    logging.info('Ip ban detected, just refresh ip pool.')
+                    self.refresh()
                     continue
 
-            resp.raise_for_status()
-        except requests.exceptions.RequestException as err:
-            logging.warning(f'Page {page} skipped due to error: {err!r}')
-        else:
-            for item in resp.json()['artworks']:
-                item_id = item['id']
-                yield item_id
-
-        page += 1
-        retries = 0
-        if page > max_page_limit:
-            break
+        resp.raise_for_status()
 
 
 min_id, max_id = 5000000, 13560534
@@ -80,49 +127,11 @@ def _iter_artwork_ids_randomly(min_id, max_id) -> Iterator[int]:
 def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 50 * 60, use_random: bool = True,
                      proxy_pool: Optional[str] = None):
     start_time = time.time()
-    session = get_requests_session()
-    session.headers.update({
-        'User-Agent': get_random_ua(),
-        'Referer': 'https://www.mihuashi.com/artworks',
-    })
-    if proxy_pool:
-        logging.info('Proxy pool enabled!')
-        session.proxies.update({
-            'http': proxy_pool,
-            'https': proxy_pool,
-        })
-
-        def _refresh():
-            logging.info('Refreshing ip pool ...')
-            from .pp import refresh_pp
-            refresh_pp(
-                bd_token=os.environ['BD_TOKEN'],
-                zone=os.environ['BD_MHS_ZONE']
-            )
-            time.sleep(5.0)
-
-            logging.info('Cleaning cookies and reset user agent ...')
-            session.cookies.clear()
-            session.headers.update({
-                'User-Agent': get_random_ua(),
-            })
-
-        _refresh()
-
-    else:
-        def _refresh():
-            logging.info('Cleaning cookies and reset user agent ...')
-            session.cookies.clear()
-            session.headers.update({
-                'User-Agent': get_random_ua(),
-            })
+    client = MHSSession(proxy_pool=proxy_pool)
+    client.homepage()
 
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
-
-    logging.info('Access artwork page list ...')
-    resp = session.get('https://www.mihuashi.com/artworks')
-    resp.raise_for_status()
 
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
         hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
@@ -201,11 +210,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             current_max_id = max(item['id'] for item in all_artworks)
             logging.info(f'Current max id: {current_max_id!r}.')
             id_source = itertools.chain(
-                _iter_artwork_ids_from_page(session, q=q, order=order, refresh_fn=_refresh),
-                _iter_artwork_ids_randomly(min_id, current_max_id),
+                client.iter_artwork_ids_from_page(q=q, order=order),
+                _iter_artwork_ids_randomly(min_id, current_max_id)
             )
         else:
-            id_source = _iter_artwork_ids_from_page(session, q=q, order=order, refresh_fn=_refresh)
+            id_source = client.iter_artwork_ids_from_page(q=q, order=order)
 
         current_count = 0
         try:
@@ -220,7 +229,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                     continue
 
                 try:
-                    resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
+                    resp = client.session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
                 except requests.exceptions.RequestException as err:
                     logging.info(f'Resource {suit_id!r} skipped due to request error: {err!r}')
                     continue
@@ -251,7 +260,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                     dst_file = os.path.join(img_dir, f'{item_name}{ext}')
                     logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
                     try:
-                        download_file(item_url, filename=dst_file, session=session)
+                        download_file(item_url, filename=dst_file, session=client.session)
                     except (AssertionError, requests.exceptions.RequestException) as err:
                         logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
                         continue
@@ -278,9 +287,8 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 current_count += 1
                 if current_count >= maxcnt:
                     break
-                if current_count % 15 == 0:
-                    _refresh()
-                    time.sleep(3.0)
+                if current_count % 10 == 0:
+                    client.refresh()
                 if time.time() - start_time >= max_time_limit:
                     break
 
