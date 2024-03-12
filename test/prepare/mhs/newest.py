@@ -375,6 +375,6 @@ if __name__ == '__main__':
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
         use_random=False,
         maxcnt=2000,
-        max_time_limit=48 * 60,
+        max_time_limit=45 * 60,
         proxy_pool=os.environ.get('PP_MHS'),
     )
