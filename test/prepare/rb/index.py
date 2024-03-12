@@ -108,7 +108,7 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         all_tags = sorted(map(str, d_tags[d_tags['posts'] >= 1]['name']))
 
         def _check_tags(t):
-            if t in tags: 
+            if t in tags:
                 current_tag_count = tags[t]['count']
             else:
                 current_tag_count = 0
