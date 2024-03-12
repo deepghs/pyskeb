@@ -238,7 +238,9 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                     if resp.status_code in {401}:
                         logging.warning(f'Login required for Resource {suit_id!r}.')
                     elif resp.status_code in {403}:
-                        logging.warning(f'Resource {suit_id!r} is private or hidden.')
+                        logging.warning(f'Resource {suit_id!r} is private or hidden, or ip get banned.')
+                        client.refresh()
+                        continue
                     elif resp.status_code in {404}:
                         logging.warning(f'Resource {suit_id!r} not exists.')
                     elif resp.status_code in {423}:
