@@ -278,6 +278,9 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 current_count += 1
                 if current_count >= maxcnt:
                     break
+                if current_count % 50 == 0:
+                    _refresh()
+                    time.sleep(5.0)
                 if time.time() - start_time >= max_time_limit:
                     break
 
