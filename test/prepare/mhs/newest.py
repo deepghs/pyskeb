@@ -23,10 +23,15 @@ from pyskeb.utils import download_file, get_requests_session, get_random_ua
 from ..base import hf_fs, hf_client, hf_token
 
 
+class IpStopped(Exception):
+    pass
+
+
 # actually the max page is 1000, but 500 is faster
 def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] = 'recent',
                                 q: Optional[str] = None, max_page_limit: int = 1000, refresh_fn=None) -> Iterator[int]:
     page = 1
+    retries = 0
     while True:
         logging.info(f'Requesting for page {page!r}.')
         try:
@@ -42,8 +47,13 @@ def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] 
                 params=params
             )
             if resp.status_code == 403 and refresh_fn is not None:
+                logging.info('Ip ban detected, just refresh ip pool.')
                 refresh_fn()
-                continue
+                retries += 1
+                if retries > 5:
+                    raise IpStopped('Max refresh try exceeded.')
+                else:
+                    continue
 
             resp.raise_for_status()
         except requests.exceptions.RequestException as err:
@@ -54,6 +64,7 @@ def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] 
                 yield item_id
 
         page += 1
+        retries = 0
         if page > max_page_limit:
             break
 
@@ -88,13 +99,19 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 bd_token=os.environ['BD_TOKEN'],
                 zone=os.environ['BD_MHS_ZONE']
             )
-            time.sleep(2.0)
+            time.sleep(5.0)
+
+            logging.info('Cleaning cookies and reset user agent ...')
+            session.cookies.clear()
+            session.headers.update({
+                'User-Agent': get_random_ua(),
+            })
 
         _refresh()
 
     else:
         def _refresh():
-            raise OSError('IP get banned, quit.')
+            raise IpStopped('IP get banned, quit.')
 
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
@@ -187,77 +204,81 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             id_source = _iter_artwork_ids_from_page(session, q=q, order=order, refresh_fn=_refresh)
 
         current_count = 0
-        for item_id in id_source:
-            if time.time() - start_time >= max_time_limit:
-                break
+        try:
+            for item_id in id_source:
+                if time.time() - start_time >= max_time_limit:
+                    break
 
-            suit_id = f'artwork_{item_id}'
-            logging.info(f'Resource {suit_id!r} confirmed.')
-            if suit_id in exist_sids:
-                logging.info(f'Resource {suit_id!r} already crawled, skipped.')
-                continue
-
-            try:
-                resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
-            except requests.exceptions.RequestException as err:
-                logging.info(f'Resource {suit_id!r} skipped due to request error: {err!r}')
-                continue
-            if not resp.ok:
-                if resp.status_code in {401}:
-                    logging.warning(f'Login required for Resource {suit_id!r}.')
-                elif resp.status_code in {403}:
-                    logging.warning(f'Resource {suit_id!r} is private or hidden.')
-                elif resp.status_code in {404}:
-                    logging.warning(f'Resource {suit_id!r} not exists.')
-                elif resp.status_code in {423}:
-                    logging.warning(f'Resource {suit_id!r} is blocked.')
-                else:
-                    logging.error(f'Resource {suit_id!r} skipped due to error: {err!r}')
+                suit_id = f'artwork_{item_id}'
+                logging.info(f'Resource {suit_id!r} confirmed.')
+                if suit_id in exist_sids:
+                    logging.info(f'Resource {suit_id!r} already crawled, skipped.')
                     continue
 
-            else:
-                item_type = resp.json()['artwork']['artwork_type']
-                author_info = resp.json()['artwork']['author']
-                author_id = author_info['id']
-                author_name = author_info['name']
-                artwork_info = resp.json()['artwork']
-                item_url = artwork_info['url']
-
-                item_name = f'{author_id}__{_name_safe(author_name)}__{item_id}'
-
-                _, ext = os.path.splitext(urlsplit(item_url).filename)
-                dst_file = os.path.join(img_dir, f'{item_name}{ext}')
-                logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
                 try:
-                    download_file(item_url, filename=dst_file, session=session)
-                except (AssertionError, requests.exceptions.RequestException) as err:
-                    logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
+                    resp = session.get(f'https://www.mihuashi.com/api/v1/artworks/{item_id}')
+                except requests.exceptions.RequestException as err:
+                    logging.info(f'Resource {suit_id!r} skipped due to request error: {err!r}')
                     continue
+                if not resp.ok:
+                    if resp.status_code in {401}:
+                        logging.warning(f'Login required for Resource {suit_id!r}.')
+                    elif resp.status_code in {403}:
+                        logging.warning(f'Resource {suit_id!r} is private or hidden.')
+                    elif resp.status_code in {404}:
+                        logging.warning(f'Resource {suit_id!r} not exists.')
+                    elif resp.status_code in {423}:
+                        logging.warning(f'Resource {suit_id!r} is blocked.')
+                    else:
+                        logging.error(f'Resource {suit_id!r} skipped due to error: {err!r}')
+                        continue
 
-                artwork_tags = artwork_info['tags']
-                for tag_item in artwork_tags:
-                    if tag_item['id'] not in all_tag_ids:
-                        all_tags.append(tag_item)
-                        all_tag_ids.add(tag_item['id'])
+                else:
+                    item_type = resp.json()['artwork']['artwork_type']
+                    author_info = resp.json()['artwork']['author']
+                    author_id = author_info['id']
+                    author_name = author_info['name']
+                    artwork_info = resp.json()['artwork']
+                    item_url = artwork_info['url']
 
-                all_artworks.append({
-                    'id': item_id,
-                    'type': item_type,
-                    'filename': os.path.basename(dst_file),
-                    'packname': pack_name,
-                    'created_at': artwork_info['created_at'],
-                    'author_id': author_id,
-                    'author_name': author_name,
-                    'tag_ids': [tag_item['id'] for tag_item in artwork_tags],
-                })
+                    item_name = f'{author_id}__{_name_safe(author_name)}__{item_id}'
 
-            exist_sids.add(suit_id)
-            pg.update()
-            current_count += 1
-            if current_count >= maxcnt:
-                break
-            if time.time() - start_time >= max_time_limit:
-                break
+                    _, ext = os.path.splitext(urlsplit(item_url).filename)
+                    dst_file = os.path.join(img_dir, f'{item_name}{ext}')
+                    logging.info(f'Downloading {item_url!r} to {dst_file!r} ...')
+                    try:
+                        download_file(item_url, filename=dst_file, session=session)
+                    except (AssertionError, requests.exceptions.RequestException) as err:
+                        logging.error(f'Download of {item_url!r} skipped due to error: {err!r}')
+                        continue
+
+                    artwork_tags = artwork_info['tags']
+                    for tag_item in artwork_tags:
+                        if tag_item['id'] not in all_tag_ids:
+                            all_tags.append(tag_item)
+                            all_tag_ids.add(tag_item['id'])
+
+                    all_artworks.append({
+                        'id': item_id,
+                        'type': item_type,
+                        'filename': os.path.basename(dst_file),
+                        'packname': pack_name,
+                        'created_at': artwork_info['created_at'],
+                        'author_id': author_id,
+                        'author_name': author_name,
+                        'tag_ids': [tag_item['id'] for tag_item in artwork_tags],
+                    })
+
+                exist_sids.add(suit_id)
+                pg.update()
+                current_count += 1
+                if current_count >= maxcnt:
+                    break
+                if time.time() - start_time >= max_time_limit:
+                    break
+
+        except IpStopped:
+            logging.info('IP stopped, stop crawling ...')
 
         if not os.listdir(img_dir):
             logging.warning('No images found, quit.')
