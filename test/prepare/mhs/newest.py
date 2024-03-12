@@ -24,17 +24,21 @@ from ..base import hf_fs, hf_client, hf_token
 
 
 # actually the max page is 1000, but 500 is faster
-def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int = 500) -> Iterator[int]:
+def _iter_artwork_ids_from_page(session: requests.Session,
+                                q: Optional[str] = None, max_page_limit: int = 500) -> Iterator[int]:
     page = 1
     while True:
         logging.info(f'Requesting for page {page!r}.')
         try:
+            params = {
+                'page': str(page),
+                'type': 'recent',
+            }
+            if q:
+                params['q'] = q
             resp = session.get(
                 'https://www.mihuashi.com/api/v1/artworks/search',
-                params={
-                    'page': str(page),
-                    'type': 'recent',
-                }
+                params=params
             )
             resp.raise_for_status()
         except requests.exceptions.RequestException as err:
@@ -140,12 +144,24 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
                 file_in_repo='tags.csv',
                 hf_token=hf_token,
             )
-            all_tags = pd.read_csv(tags_csv).to_dict('records')
+            d_tags = pd.read_csv(tags_csv)
+            all_tags = d_tags.to_dict('records')
             all_tag_ids = set(pd.read_csv(tags_csv)['id'])
             os.remove(tags_csv)
+            if random.random() < 0.8:
+                min_names = list(d_tags[(d_tags['type'] != 'custom_tag')].
+                                 sort_values(['count'], ascending=True)[:5]['name'])
+                q = random.choice(min_names)
+            else:
+                q = None
         else:
             all_tags = []
             all_tag_ids = set()
+            q = None
+        if q is None:
+            logging.info('Ready to crawl newest images ...')
+        else:
+            logging.info(f'Ready to crawl newest images with tag {q!r} ...')
 
         img_dir = os.path.join(td, 'images')
         os.makedirs(img_dir, exist_ok=True)
@@ -154,11 +170,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             current_max_id = max(item['id'] for item in all_artworks)
             logging.info(f'Current max id: {current_max_id!r}.')
             id_source = itertools.chain(
-                _iter_artwork_ids_from_page(session),
+                _iter_artwork_ids_from_page(session, q=q),
                 _iter_artwork_ids_randomly(min_id, current_max_id),
             )
         else:
-            id_source = _iter_artwork_ids_from_page(session)
+            id_source = _iter_artwork_ids_from_page(session, q=q)
 
         current_count = 0
         for item_id in id_source:
