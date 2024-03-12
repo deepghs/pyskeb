@@ -107,20 +107,28 @@ def crawl_rb_index(repository: str, quit_page_when_exist: bool = True,
         all_tags_count_map = dict(zip(d_tags['name'], d_tags['posts']))
         all_tags = sorted(map(str, d_tags[d_tags['posts'] >= 1]['name']))
 
-        while all_tags:
-            current_tag = random.choice(all_tags)
-            if current_tag in tags:
-                current_tag_count = tags[current_tag]['count']
+        def _check_tags(t):
+            if t in tags:
+                current_tag_count = tags[t]['count']
             else:
                 current_tag_count = 0
-            all_tag_count = all_tags_count_map.get(current_tag, 0)
+            all_tag_count = all_tags_count_map.get(t, 0)
             if current_tag_count > all_tag_count * 0.99 or current_tag_count >= 195000:
                 logging.info(f'Current tag {current_tag!r} reach safe limit '
                              f'(current posts: {current_tag_count!r}, total posts: {all_tag_count!r}), skipped.')
+                return False
+            else:
+                logging.info(f'Getting posts of {current_tag!r} ({current_tag_count!r}/{all_tag_count}) ...')
+                return True
+
+        all_tags = list(filter(_check_tags, all_tags))
+
+        while all_tags:
+            current_tag = random.choice(all_tags)
+            if not _check_tags(current_tag):
                 all_tags.remove(current_tag)
                 continue
 
-            logging.info(f'Getting posts of {current_tag!r} ({current_tag_count!r}/{all_tag_count}) ...')
             current_page = 1
             while True:
                 page_limiter.try_acquire('page')
