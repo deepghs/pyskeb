@@ -77,16 +77,17 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             'https': proxy_pool,
         })
 
+        logging.info('Refreshing ip pool ...')
+        from .pp import refresh_pp
+        refresh_pp(
+            bd_token=os.environ['BD_TOKEN'],
+            zone=os.environ['BD_MHS_ZONE']
+        )
+        time.sleep(2.0)
+
     def _name_safe(name_text):
         return re.sub(r'[\W_]+', '_', name_text).strip('_')
 
-    logging.info('Refreshing ip pool ...')
-    from .pp import refresh_pp
-    refresh_pp(
-        bd_token=os.environ['BD_TOKEN'],
-        zone=os.environ['BD_MHS_ZONE']
-    )
-    time.sleep(2.0)
     logging.info('Access artwork page list ...')
     resp = session.get('https://www.mihuashi.com/artworks')
     resp.raise_for_status()
