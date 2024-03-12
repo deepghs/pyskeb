@@ -192,7 +192,7 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             all_tags = d_tags.to_dict('records')
             all_tag_ids = set(pd.read_csv(tags_csv)['id'])
             os.remove(tags_csv)
-            if random.random() < 0.8:
+            if random.random() < 1.1:
                 min_names = list(d_tags[(d_tags['type'] != 'custom_tag')].
                                  sort_values(['count'], ascending=True)[:5]['name'])
                 q = random.choice(min_names)
