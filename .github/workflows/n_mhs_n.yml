@@ -73,6 +73,8 @@ jobs:
           REMOTE_REPOSITORY: ${{ secrets.REMOTE_REPOSITORY }}
           REMOTE_REPOSITORY_MHS_NEWEST: ${{ secrets.REMOTE_REPOSITORY_MHS_NEWEST }}
           PP_MHS: ${{ secrets.PP_MHS }}
+          BD_TOKEN: ${{ secrets.BD_TOKEN }}
+          BD_MHS_ZONE: ${{ secrets.BD_MHS_ZONE }}
         shell: bash
         continue-on-error: true
         run: |
