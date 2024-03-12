@@ -24,7 +24,7 @@ from ..base import hf_fs, hf_client, hf_token
 
 
 # actually the max page is 1000, but 500 is faster
-def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int = 100) -> Iterator[int]:
+def _iter_artwork_ids_from_page(session: requests.Session, max_page_limit: int = 500) -> Iterator[int]:
     page = 1
     while True:
         logging.info(f'Requesting for page {page!r}.')
