@@ -24,16 +24,17 @@ from ..base import hf_fs, hf_client, hf_token
 
 
 # actually the max page is 1000, but 500 is faster
-def _iter_artwork_ids_from_page(session: requests.Session,
-                                q: Optional[str] = None, max_page_limit: int = 500) -> Iterator[int]:
+def _iter_artwork_ids_from_page(session: requests.Session, order: Optional[str] = 'recent',
+                                q: Optional[str] = None, max_page_limit: int = 1000) -> Iterator[int]:
     page = 1
     while True:
         logging.info(f'Requesting for page {page!r}.')
         try:
             params = {
                 'page': str(page),
-                'type': 'recent',
             }
+            if order:
+                params['type'] = order
             if q:
                 params['q'] = q
             resp = session.get(
@@ -154,10 +155,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             all_tags = []
             all_tag_ids = set()
             q = None
+        order = random.choice([None, 'recent', 'hot'])
         if q is None:
-            logging.info('Ready to crawl newest images ...')
+            logging.info(f'Ready to crawl newest images (order: {order!r}) ...')
         else:
-            logging.info(f'Ready to crawl newest images with tag {q!r} ...')
+            logging.info(f'Ready to crawl newest images with tag {q!r} (order: {order!r}) ...')
 
         img_dir = os.path.join(td, 'images')
         os.makedirs(img_dir, exist_ok=True)
@@ -166,11 +168,11 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             current_max_id = max(item['id'] for item in all_artworks)
             logging.info(f'Current max id: {current_max_id!r}.')
             id_source = itertools.chain(
-                _iter_artwork_ids_from_page(session, q=q),
+                _iter_artwork_ids_from_page(session, q=q, order=order),
                 _iter_artwork_ids_randomly(min_id, current_max_id),
             )
         else:
-            id_source = _iter_artwork_ids_from_page(session, q=q)
+            id_source = _iter_artwork_ids_from_page(session, q=q, order=order)
 
         current_count = 0
         for item_id in id_source:
