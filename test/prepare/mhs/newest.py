@@ -193,8 +193,13 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
             all_tag_ids = set(pd.read_csv(tags_csv)['id'])
             os.remove(tags_csv)
             if random.random() < 1.1:
-                min_names = list(d_tags[(d_tags['type'] != 'custom_tag')].
-                                 sort_values(['count'], ascending=True)[:3]['name'])
+                ex_tags = ['发型', 'logo设计', '拍立得设计', '咕卡贴纸', '风景', '武器设计', '排版',
+                           '绘本', '建模', '手写', '定制服设', '美工', '人设', '全身', '大头', '页漫',
+                           '服设定制', '鼠标指针', '服设立绘', '金属徽章', '半身像', '直播间', '武器',
+                           '印象服设', '服装设计', '平面设计', '线稿', '拍立得', '字体设计', '贴纸',
+                           '胸像', '虚拟主播', 'vtuber', 'logo', '水印', '半身', '服设']
+                min_names = list(d_tags[(d_tags['type'] != 'custom_tag') | d_tags['name'].isin(ex_tags)].
+                                 sort_values(['count'], ascending=True)[:5]['name'])
                 q = random.choice(min_names)
             else:
                 q = None
@@ -400,6 +405,6 @@ if __name__ == '__main__':
         repository=os.environ['REMOTE_REPOSITORY_MHS_NEWEST'],
         use_random=False,
         maxcnt=2000,
-        max_time_limit=45 * 60,
+        max_time_limit=(2 * 60 + 30) * 60,
         proxy_pool=os.environ.get('PP_MHS'),
     )
