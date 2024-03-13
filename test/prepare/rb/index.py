@@ -272,5 +272,5 @@ if __name__ == '__main__':
         repository=os.environ['REMOTE_REPOSITORY_RB'],
         quit_page_when_exist=True,
         max_cnt=50000,
-        max_time_limit=47 * 60,
+        max_time_limit=(2 * 60 + 20) * 60,
     )
