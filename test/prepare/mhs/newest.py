@@ -344,7 +344,13 @@ def mhs_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         all_cnt = len(all_artworks)
         for tag_item in all_tags:
             tag_item['count'] = tags_analysis.get(tag_item['id'], 0)
-        all_tags = sorted(all_tags, key=lambda x: (1 if x['type'] == 'custom_tag' else 0, x['type'], x['id']))
+        all_tags = sorted(
+            all_tags,
+            key=lambda x: (
+                1 if x['type'] == 'custom_tag' else 0,
+                (-x['count'], x['id']) if x['type'] == 'custom_tag' else (x['type'], x['id'])
+            )
+        )
         df_tags = pd.DataFrame(all_tags)
         df_tags.to_csv(os.path.join(export_dir, 'tags.csv'), index=False)
         with open(os.path.join(export_dir, 'exist_sids.json'), 'w') as f:
