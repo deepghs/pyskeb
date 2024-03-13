@@ -56,7 +56,7 @@ class MHSSession:
                 bd_token=os.environ['BD_TOKEN'],
                 zone=os.environ['BD_MHS_ZONE']
             )
-            time.sleep(5.0)
+            time.sleep(30.0)
 
     def iter_artwork_ids_from_page(self, order: Optional[str] = 'recent', q: Optional[str] = None,
                                    max_page_limit: int = 1000) -> Iterator[int]:
