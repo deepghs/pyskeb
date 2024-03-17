@@ -4,8 +4,8 @@ name: NSKB Newest
 on:
   #  push:
   workflow_dispatch:
-#  schedule:
-#    - cron: '45 */6 * * *'
+  schedule:
+    - cron: '45 */6 * * *'
 #    - cron: '0 12 * * *'
 
 jobs:
