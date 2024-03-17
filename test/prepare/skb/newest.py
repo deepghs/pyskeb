@@ -18,12 +18,30 @@ from tqdm import tqdm
 
 from pyskeb.utils import download_file
 from ..base import hf_fs, hf_client, hf_token
-from ..listing import list_newest_posts, client, split_username_and_id_from_path
+from ..listing import list_newest_posts, client, split_username_and_id_from_path, list_posts_via_users
 from ..url import extract_urls
 
 
 def _iter_artwork_ids_from_page(max_count_limit: int = 1000) -> Iterator[Tuple[str, int]]:
     yield from list_newest_posts(limit=max_count_limit)
+
+
+def _iter_artwork_ids_from_user(user_sort: str = 'popularity', work_role: str = 'client', limit: int = 1000):
+    yield from itertools.islice(list_posts_via_users(user_sort, work_role), limit)
+
+
+def _iter_artwork_ids_from_all_users(limit: int = 1000):
+    for user_sort in ['popularity', 'date', 'request_masters', 'first_requesters']:
+        if 'request' in user_sort:
+            yield from itertools.islice(itertools.chain(
+                _iter_artwork_ids_from_user(user_sort, 'client', limit=limit),
+                _iter_artwork_ids_from_user(user_sort, 'creator', limit=limit),
+            ), limit)
+        else:
+            yield from itertools.islice(itertools.chain(
+                _iter_artwork_ids_from_user(user_sort, 'creator', limit=limit),
+                _iter_artwork_ids_from_user(user_sort, 'client', limit=limit),
+            ), limit)
 
 
 class Inc:
@@ -113,10 +131,14 @@ def skb_newest_crawl(repository: str, maxcnt: int = 500, max_time_limit: int = 5
         if use_random:
             id_source = itertools.chain(
                 _iter_artwork_ids_from_page(max_count_limit=1000),
+                _iter_artwork_ids_from_all_users(limit=1000),
                 _iter_artwork_ids_in_queue(queue, inc),
             )
         else:
-            id_source = _iter_artwork_ids_from_page(max_count_limit=1000),
+            id_source = itertools.chain(
+                _iter_artwork_ids_from_page(max_count_limit=1000),
+                _iter_artwork_ids_from_all_users(limit=1000),
+            )
 
         current_count = 0
         for username, post_id in id_source:
@@ -310,6 +332,6 @@ if __name__ == '__main__':
     logging.try_init_root(logging.INFO)
     skb_newest_crawl(
         repository=os.environ['REMOTE_REPOSITORY_SKB_NEWEST'],
-        maxcnt=3000,
+        maxcnt=10000,
         max_time_limit=(60 * 5 + 40) * 60,
     )
